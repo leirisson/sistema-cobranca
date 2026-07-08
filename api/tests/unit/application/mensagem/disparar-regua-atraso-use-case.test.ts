@@ -4,6 +4,7 @@ import { DispararReguaAtrasoUseCase } from "../../../../src/application/mensagem
 import { Cliente } from "../../../../src/domain/cliente/cliente.js";
 import { Cobranca } from "../../../../src/domain/cobranca/cobranca.js";
 import { FakeCanalMensagem } from "../../fakes/fake-canal-mensagem.js";
+import { FakeCanalNotificacao } from "../../fakes/fake-canal-notificacao.js";
 import { FakeClienteRepository } from "../../fakes/fake-cliente-repository.js";
 import { FakeCobrancaRepository } from "../../fakes/fake-cobranca-repository.js";
 import { FakeMensagemEnviadaRepository } from "../../fakes/fake-mensagem-enviada-repository.js";
@@ -33,6 +34,7 @@ describe("DispararReguaAtrasoUseCase", () => {
   let cobrancaRepository: FakeCobrancaRepository;
   let mensagemRepository: FakeMensagemEnviadaRepository;
   let canalMensagem: FakeCanalMensagem;
+  let canalNotificacao: FakeCanalNotificacao;
   let useCase: DispararReguaAtrasoUseCase;
   let cliente: Cliente;
 
@@ -41,11 +43,13 @@ describe("DispararReguaAtrasoUseCase", () => {
     cobrancaRepository = new FakeCobrancaRepository();
     mensagemRepository = new FakeMensagemEnviadaRepository();
     canalMensagem = new FakeCanalMensagem();
+    canalNotificacao = new FakeCanalNotificacao();
     useCase = new DispararReguaAtrasoUseCase(
       clienteRepository,
       cobrancaRepository,
       mensagemRepository,
       canalMensagem,
+      canalNotificacao,
     );
     cliente = criarCliente();
     await clienteRepository.salvar(cliente);
@@ -156,5 +160,28 @@ describe("DispararReguaAtrasoUseCase", () => {
     const sucesso = mensagemRepository.mensagens.find((m) => m.cobrancaId === cobrancaOk.id);
     expect(falha?.statusEnvio).toBe("FALHA");
     expect(sucesso?.statusEnvio).toBe("ENVIADO");
+  });
+
+  it("tenta fallback por e-mail quando o WhatsApp falha e o cliente tem e-mail cadastrado (EMAIL-R-05)", async () => {
+    const clienteComEmail = Cliente.criar({
+      nome: "Ana Souza",
+      documento: "98765432100",
+      telefones: [{ numero: "+5511977776666", principal: true }],
+      email: "ana@example.com",
+      valorCobranca: 200,
+      diaVencimento: 10,
+    });
+    await clienteRepository.salvar(clienteComEmail);
+    canalMensagem.deveFalharPara.add("+5511977776666");
+
+    const cobranca = criarCobranca(clienteComEmail.id, new Date("2026-08-10"));
+    await cobrancaRepository.salvar(cobranca);
+
+    await useCase.executar(new Date("2026-08-10"));
+
+    expect(canalNotificacao.chamadas).toHaveLength(1);
+    expect(canalNotificacao.chamadas[0]?.destinatario).toBe("ana@example.com");
+    expect(mensagemRepository.mensagens[0]?.statusEnvio).toBe("ENVIADO");
+    expect(mensagemRepository.mensagens[0]?.canal).toBe("email");
   });
 });

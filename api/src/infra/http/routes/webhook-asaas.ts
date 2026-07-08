@@ -3,9 +3,13 @@ import type { FastifyInstance } from "fastify";
 import { ConfirmarPagamentoUseCase } from "../../../application/cobranca/confirmar-pagamento-use-case.js";
 import { CobrancaNaoEncontradaError } from "../../../domain/cobranca/cobranca-nao-encontrada-error.js";
 import { env } from "../../../shared/config/env.js";
-import { prisma } from "../../database/prisma-client.js";
+import { PrismaClienteRepository } from "../../database/prisma-cliente-repository.js";
 import { PrismaCobrancaRepository } from "../../database/prisma-cobranca-repository.js";
-import { LogNotificadorConfirmacao } from "../../notificacoes/log-notificador-confirmacao.js";
+import { PrismaMensagemEnviadaRepository } from "../../database/prisma-mensagem-enviada-repository.js";
+import { prisma } from "../../database/prisma-client.js";
+import { EvolutionCanalMensagem } from "../../gateways/evolution-canal-mensagem.js";
+import { GmailNotificador } from "../../gateways/gmail-notificador.js";
+import { MensagemNotificadorConfirmacao } from "../../notificacoes/mensagem-notificador-confirmacao.js";
 
 interface WebhookAsaasPayload {
   event: string;
@@ -14,7 +18,25 @@ interface WebhookAsaasPayload {
 
 export async function webhookAsaasRoutes(app: FastifyInstance) {
   const cobrancaRepository = new PrismaCobrancaRepository(prisma);
-  const notificador = new LogNotificadorConfirmacao(app.log);
+  const clienteRepository = new PrismaClienteRepository(prisma);
+  const mensagemEnviadaRepository = new PrismaMensagemEnviadaRepository(prisma);
+  const canalMensagem = new EvolutionCanalMensagem({
+    baseUrl: env.EVOLUTION_API_URL,
+    apiKey: env.EVOLUTION_API_KEY,
+    instance: env.EVOLUTION_INSTANCE,
+  });
+  const canalNotificacao = new GmailNotificador({
+    clientId: env.GMAIL_CLIENT_ID,
+    clientSecret: env.GMAIL_CLIENT_SECRET,
+    refreshToken: env.GMAIL_REFRESH_TOKEN,
+    remetente: env.GMAIL_REMETENTE,
+  });
+  const notificador = new MensagemNotificadorConfirmacao(
+    clienteRepository,
+    mensagemEnviadaRepository,
+    canalMensagem,
+    canalNotificacao,
+  );
   const useCase = new ConfirmarPagamentoUseCase(
     cobrancaRepository,
     notificador,

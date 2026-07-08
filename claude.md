@@ -126,10 +126,14 @@ sistema-cobranca/
 | `EditarClienteUseCase` | `src/application/cliente/editar-cliente-use-case.ts` | CAD-04 — edita dados de cliente existente reaplicando invariantes |
 | `GerarCobrancaUseCase` | `src/application/cobranca/gerar-cobranca-use-case.ts` | COB-01 — para cada cliente ativo, calcula vencimento do ciclo, checa duplicidade (COB-R-04), cria cobrança no `GatewayPagamento` e persiste como `PENDENTE` (COB-R-02, COB-R-03, COB-R-05) |
 | `ConfirmarPagamentoUseCase` | `src/application/cobranca/confirmar-pagamento-use-case.ts` | PAG-01 — busca cobrança por `gatewayChargeId`, ignora sem erro se já `PAGO`/`CANCELADO` (PAG-R-04, idempotência), senão chama `Cobranca.marcarComoPaga` e, se `CONFIRMACAO_PAGAMENTO_HABILITADA`, dispara `NotificadorConfirmacao` (PAG-R-05) |
-| `DispararLembreteInicialUseCase` | `src/application/mensagem/disparar-lembrete-inicial-use-case.ts` | MSG-01 — dado uma `Cobranca` recém-gerada, monta texto de LEMBRETE e envia pro `telefonePrincipal` do cliente via `CanalMensagem`, registrando `MensagemEnviada` (ENVIADO/FALHA, nunca lança em caso de falha de envio) |
-| `DispararReguaAtrasoUseCase` | `src/application/mensagem/disparar-regua-atraso-use-case.ts` | MSG-02/03/04 — cron diário (ainda não agendado): lista cobranças `PENDENTE`/`ATRASADO`, calcula dias desde o vencimento (0/+1/+3), dispara VENCIMENTO ou ATRASO, deduplicando por `MensagemEnviadaRepository.existeParaCobrancaETipo` e nunca interrompendo a fila em caso de falha (MSG-R-04, MSG-R-06) |
+| `DispararLembreteInicialUseCase` | `src/application/mensagem/disparar-lembrete-inicial-use-case.ts` | MSG-01 — dado uma `Cobranca` recém-gerada, monta texto de LEMBRETE e tenta enviar pro `telefonePrincipal` do cliente via `CanalMensagem`; se falhar e o cliente tiver e-mail, cai para `CanalNotificacao` (EMAIL-R-05) via `enviarMensagemComFallback`; registra `MensagemEnviada` com `canal` (whatsapp/email) e status ENVIADO/FALHA, nunca lança em caso de falha de envio |
+| `DispararReguaAtrasoUseCase` | `src/application/mensagem/disparar-regua-atraso-use-case.ts` | MSG-02/03/04 — cron diário (ainda não agendado): lista cobranças `PENDENTE`/`ATRASADO`, calcula dias desde o vencimento (0/+1/+3), dispara VENCIMENTO ou ATRASO (mesmo fallback WhatsApp→e-mail do lembrete inicial), deduplicando por `MensagemEnviadaRepository.existeParaCobrancaETipo` e nunca interrompendo a fila em caso de falha (MSG-R-04, MSG-R-06) |
 
-Demais módulos (`notificacoes-email`, `dashboard`): ver `api/specs/<módulo>/tasks.md` para a lista rastreável por ID. Ainda não iniciados.
+`enviarMensagemComFallback` (`src/application/mensagem/enviar-mensagem-com-fallback.ts`) é o helper compartilhado pelos três disparos (lembrete, régua, confirmação): tenta `CanalMensagem` primeiro, cai pra `CanalNotificacao` só se houver e-mail cadastrado, devolve `{ statusEnvio, canal }` pronto pra persistir em `MensagemEnviada`.
+
+`MensagemNotificadorConfirmacao` (`src/infra/notificacoes/mensagem-notificador-confirmacao.ts`) implementa `NotificadorConfirmacao` (módulo `cobrancas`) reaproveitando esse mesmo helper — é o que o webhook do Asaas chama quando `CONFIRMACAO_PAGAMENTO_HABILITADA` está ligado (substituiu o antigo stub `LogNotificadorConfirmacao`).
+
+Demais módulos (`dashboard`): ver `api/specs/dashboard/tasks.md`. Ainda não iniciado.
 
 ### 4.3 Rotas HTTP
 
@@ -143,7 +147,7 @@ Demais módulos (`notificacoes-email`, `dashboard`): ver `api/specs/<módulo>/ta
 | Job | Trigger | Descrição | Status |
 |-----|---------|-----------|--------|
 | Geração de cobrança | cron diário (previsto) | `GerarCobrancaUseCase` já existe e é testável; falta apenas o wrapper BullMQ que chama `.executar(new Date())` num cron diário | Use case pronto, job BullMQ **não implementado** |
-| Disparo de lembrete inicial | após geração de cobrança | `DispararLembreteInicialUseCase` já existe e é testável (envia LEMBRETE via `CanalMensagem`); falta só a chamada a partir de `GerarCobrancaUseCase`/job de geração | Use case pronto, wiring **não implementado** |
+| Disparo de lembrete inicial | após geração de cobrança | `DispararLembreteInicialUseCase` já existe e é testável (envia LEMBRETE via `CanalMensagem`, com fallback por e-mail via `CanalNotificacao`); falta só a chamada a partir de `GerarCobrancaUseCase`/job de geração | Use case pronto, wiring **não implementado** |
 | Disparo da régua de atraso | cron diário (previsto) | `DispararReguaAtrasoUseCase` já existe e é testável (VENCIMENTO/ATRASO em D0/D+1/D+3); falta apenas o wrapper BullMQ que chama `.executar(new Date())` num cron diário | Use case pronto, job BullMQ **não implementado** |
 
 ---
@@ -157,7 +161,7 @@ Demais módulos (`notificacoes-email`, `dashboard`): ver `api/specs/<módulo>/ta
 | 1 | Service Object / Use Case | Lógica de negócio, um verbo + substantivo | `CriarClienteUseCase`, `InativarClienteUseCase` |
 | 2 | Job Pattern | Tarefas assíncronas (BullMQ) | job de geração de cobrança, job de disparo de lembrete |
 | 3 | Repository Pattern | Acesso a dados via Prisma, interface no domínio | `ClienteRepository` |
-| 4 | Porta/Adapter | Integração externa (gateway de pagamento, WhatsApp) | porta "o que um gateway de pagamento faz" ⇄ `AsaasGateway`; `NotificadorConfirmacao` ⇄ `LogNotificadorConfirmacao` (stub até o disparo real ser ligado); `CanalMensagem` ⇄ `EvolutionCanalMensagem` (`src/infra/gateways/evolution-canal-mensagem.ts`, HTTP direto via fetch contra a Evolution API, sem SDK de terceiros) |
+| 4 | Porta/Adapter | Integração externa (gateway de pagamento, WhatsApp, e-mail) | porta "o que um gateway de pagamento faz" ⇄ `AsaasGateway`; `NotificadorConfirmacao` ⇄ `MensagemNotificadorConfirmacao` (`src/infra/notificacoes/`, WhatsApp com fallback e-mail); `CanalMensagem` ⇄ `EvolutionCanalMensagem` (`src/infra/gateways/evolution-canal-mensagem.ts`, HTTP direto via fetch contra a Evolution API, sem SDK de terceiros); `CanalNotificacao` ⇄ `GmailNotificador` (`src/infra/gateways/gmail-notificador.ts`, Gmail API via `googleapis`, OAuth2 com refresh token, mensagem RFC 2822 codificada em base64url) |
 | 5 | Erro de domínio | Erros de regra de negócio | `DomainError` (base, `src/shared/errors/domain-error.ts`) → subclasses como `ClienteInvalidoError` |
 | 6 | _[Adicionar conforme o projeto cresce]_ | — | — |
 
@@ -169,7 +173,9 @@ Demais módulos (`notificacoes-email`, `dashboard`): ver `api/specs/<módulo>/ta
 
 ### 6.1 APIs Externas
 
-_Nenhuma integração implementada ainda (Asaas e Evolution API entram nos módulos `cobrancas`/`mensagens`, ainda não iniciados). Registrar aqui assim que surgir o primeiro obstáculo real (rate limit, formato de payload, etc.)._
+#### Gmail API (`googleapis`)
+- **Decisão:** autenticação via OAuth2 (client id/secret + refresh token), nunca usuário/senha (EMAIL-R-02). `GmailNotificador` monta a mensagem manualmente no formato RFC 2822 (`From`/`To`/`Subject`/`Content-Type: text/html` + corpo) e codifica em base64url antes de chamar `gmail.users.messages.send` — não há necessidade de biblioteca adicional de parsing de e-mail (`nodemailer` etc.) só para montar o payload.
+- **Ainda não validado contra a API real:** só testado com fake (`FakeCanalNotificacao`) nos testes unitários. Falta configurar uma conta Google Workspace/Gmail real (client id/secret via Google Cloud Console, gerar refresh token) antes do primeiro envio real em produção — variáveis `GMAIL_CLIENT_ID`/`GMAIL_CLIENT_SECRET`/`GMAIL_REFRESH_TOKEN`/`GMAIL_REMETENTE` ficam vazias em `.env` até lá.
 
 ### 6.2 Ambiente e Deploy
 
@@ -302,6 +308,25 @@ npx tsc -p tsconfig.test.json --noEmit
 ## 10. Linha do Tempo do Projeto (0% → 100%)
 
 > Registro cronológico de marcos. Cada entrada nova vai **no topo** da lista (mais recente primeiro), com data e um resumo do que mudou de estado.
+
+### 2026-07-08 — Sprint 3 (conclusão): módulo Notificações por E-mail (EMAIL) via TDD
+- Terceiro e último módulo da Sprint 3 (PAG → MSG → EMAIL). Fecha EMAIL-01 a EMAIL-05 (`api/specs/notificacoes-email/tasks.md`) e, com isso, fecha a Sprint 3 inteira — inclusive revisita PAG-04 (disparo real de confirmação, antes pendente) e mantém MSG-05 parcial (painel de erros ainda depende do `dashboard`, não iniciado):
+  - `src/domain/mensagem/canal-notificacao.ts` — porta `CanalNotificacao` (`enviarEmail`), sem qualquer referência a SDK/HTTP do Gmail
+  - `src/domain/mensagem/mensagem-enviada.ts` — `MensagemEnviada` ganhou campo `canal` (`"whatsapp" | "email"`, default `"whatsapp"`), validado via Zod (schema `.default()`), com getter `canal`
+  - `src/domain/mensagem/template-email.ts` — `montarEmailMensagem`, adapta `montarTextoMensagem` (LEMBRETE/VENCIMENTO/ATRASO) pro formato HTML básico (`<p>` + link `<a href>`), com assunto próprio por tipo
+  - `src/domain/mensagem/template-confirmacao.ts` — `montarTextoConfirmacao`/`montarEmailConfirmacao`, template dedicado pro tipo CONFIRMACAO (fora do escopo de `template-mensagem.ts`/`template-email.ts` por decisão da Sprint 2)
+  - `prisma/schema.prisma` — novo enum `CanalNotificacao` (`whatsapp`/`email`, mapeado `canal_notificacao`); `MensagemEnviada.canal` (`NOT NULL DEFAULT whatsapp`); migration `20260708190000_adiciona_canal_mensagem_enviada` (manual, ver seção 6.5 — tabela `mensagens_enviadas` vazia em dev/test, sem necessidade de backfill)
+  - `src/infra/database/prisma-mensagem-enviada-repository.ts` — `salvar()` persiste `canal`
+  - `src/infra/gateways/gmail-notificador.ts` — `GmailNotificador`, adapter via `googleapis` (`google.gmail({version: "v1"})`), autenticado com `google.auth.OAuth2` + refresh token (EMAIL-R-02); monta a mensagem manualmente em RFC 2822 e codifica em base64url antes de `users.messages.send` (ver seção 6.1)
+  - `src/application/mensagem/enviar-mensagem-com-fallback.ts` — `enviarMensagemComFallback`, helper compartilhado pelos três pontos de disparo (lembrete, régua, confirmação): tenta `CanalMensagem`, cai pra `CanalNotificacao` só se `email` não for nulo (EMAIL-R-01, EMAIL-R-05), nunca lança (EMAIL-R-07), devolve `{ statusEnvio, canal }`
+  - `src/application/mensagem/disparar-lembrete-inicial-use-case.ts` e `disparar-regua-atraso-use-case.ts` — passaram a receber `CanalNotificacao` no construtor e usar `enviarMensagemComFallback` em vez do try/catch direto contra `CanalMensagem`; `MensagemEnviada` agora registra o `canal` real usado
+  - `src/infra/notificacoes/mensagem-notificador-confirmacao.ts` — `MensagemNotificadorConfirmacao`, implementa `NotificadorConfirmacao` (módulo `cobrancas`) reaproveitando `enviarMensagemComFallback`; registra `MensagemEnviada` tipo CONFIRMACAO; **substituiu** `LogNotificadorConfirmacao` (deletado, ficou morto) na rota `POST /webhooks/asaas`, fechando PAG-04 (EMAIL-R-04, reaproveita o toggle `CONFIRMACAO_PAGAMENTO_HABILITADA` do módulo `pagamentos`)
+  - `env.ts`/`.env.example`/`.env`/`.env.test` — novas variáveis `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_REMETENTE`
+  - `package.json` — nova dependência `googleapis`
+- Testes: 18 unitários novos (2 de `template-email` + 2 de `template-confirmacao` + 2 de `canal` em `mensagem-enviada` + 6 de fallback nos use cases de lembrete/régua + 2 de `MensagemNotificadorConfirmacao` + demais ajustes) + 1 de integração novo (`canal` persistido/recuperado em `PrismaMensagemEnviadaRepository`) — suíte completa do projeto em 110 testes, todos verdes.
+- Lint e typecheck (ambos tsconfigs) limpos; `npx prisma migrate status` sem pendências.
+- **Obstáculo de infra resolvido durante o módulo:** dois arquivos de teste de integração (`webhook-asaas.test.ts`, `prisma-cobranca-repository.test.ts`) começaram a falhar com `Foreign key constraint violated on the constraint: mensagens_enviadas_cobranca_id_fkey` no `afterEach`, porque `MensagemNotificadorConfirmacao` agora grava `MensagemEnviada` de verdade e o `afterEach` apagava `cobranca` antes de `mensagemEnviada`. Corrigido adicionando `prisma.mensagemEnviada.deleteMany()` antes de `prisma.cobranca.deleteMany()` nesses dois arquivos (mesmo padrão já usado em `prisma-mensagem-enviada-repository.test.ts`).
+- **Não feito ainda:** credenciais reais do Gmail (client id/secret, refresh token) — `GmailNotificador` só foi validado contra fake nos testes, nunca contra a API real (ver seção 6.1); job BullMQ dos crons de geração de cobrança e régua de mensagens (mesma situação de sempre, ver seção 4.4); wiring de `DispararLembreteInicialUseCase` a partir de `GerarCobrancaUseCase`; painel de erros no `dashboard` (MSG-05, módulo não iniciado). Com EMAIL fechado, a Sprint 3 está concluída — próximo passo natural é a Sprint 4 (dashboard) ou o wiring dos jobs BullMQ pendentes.
 
 ### 2026-07-08 — Sprint 3 (parcial): módulo Mensagens (MSG) via TDD
 - Segundo módulo da Sprint 3, na ordem PAG → MSG → EMAIL. Fecha MSG-01 a MSG-04 (`api/specs/mensagens/tasks.md`); MSG-05 parcial (log via try/catch nos use cases, painel de erros fica pro módulo `dashboard`, não iniciado):

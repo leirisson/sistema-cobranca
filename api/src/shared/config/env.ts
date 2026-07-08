@@ -18,6 +18,11 @@ const envSchema = z.object({
   EVOLUTION_API_KEY: z.string(),
   EVOLUTION_INSTANCE: z.string(),
 
+  GMAIL_CLIENT_ID: z.string(),
+  GMAIL_CLIENT_SECRET: z.string(),
+  GMAIL_REFRESH_TOKEN: z.string(),
+  GMAIL_REMETENTE: z.string().email(),
+
   COBRANCA_ANTECEDENCIA_DIAS: z.coerce.number().int().positive().default(5),
   CONFIRMACAO_PAGAMENTO_HABILITADA: z.coerce.boolean().default(false),
 });

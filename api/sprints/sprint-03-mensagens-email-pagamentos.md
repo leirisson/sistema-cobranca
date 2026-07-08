@@ -1,6 +1,6 @@
 # Sprint 3 — Mensagens (MSG) + Notificações por E-mail (EMAIL) + Pagamentos (PAG)
 
-> Status: em andamento — PAG e MSG concluídos (núcleo DDD via TDD), EMAIL pendente
+> Status: concluída — PAG, MSG e EMAIL implementados via TDD
 > Depende de: [Sprint 2 — Cobranças](sprint-02-cobrancas.md) (`Cobranca` precisa existir para disparar mensagem/confirmar pagamento)
 > Specs de referência:
 > - `api/specs/mensagens/spec.md`, `rules.md`, `tasks.md`
@@ -24,7 +24,7 @@ Os três módulos foram agrupados na mesma sprint porque são interdependentes (
 - [x] PAG-01 — Implementar endpoint de webhook + `Cobranca.marcarComoPaga`
 - [x] PAG-02 — Implementar validação de `ASAAS_WEBHOOK_TOKEN`
 - [x] PAG-03 — Implementar máquina de estados da entidade `Cobranca`
-- [~] PAG-04 — Toggle de confirmação implementado; disparo real fica pendente até o módulo `mensagens` existir
+- [x] PAG-04 — Toggle de confirmação + disparo real via `MensagemNotificadorConfirmacao` (WhatsApp com fallback e-mail)
 
 ## Tasks — Mensagens (MSG)
 
@@ -36,21 +36,21 @@ Os três módulos foram agrupados na mesma sprint porque são interdependentes (
 
 ## Tasks — Notificações por E-mail (EMAIL)
 
-- [ ] EMAIL-01 — Implementar porta `CanalNotificacao` e adapter `GmailNotificador`
-- [ ] EMAIL-02 — Configurar OAuth2 Gmail (credenciais em variável de ambiente/secret)
-- [ ] EMAIL-03 — Reaproveitar toggle de confirmação do módulo `pagamentos`
-- [ ] EMAIL-04 — Implementar lógica de fallback no disparo de mensagens (módulo `mensagens`)
-- [ ] EMAIL-05 — Adicionar campo `canal` em `MensagemEnviada` + log estruturado
+- [x] EMAIL-01 — Implementar porta `CanalNotificacao` e adapter `GmailNotificador`
+- [x] EMAIL-02 — Configurar OAuth2 Gmail (credenciais em variável de ambiente/secret)
+- [x] EMAIL-03 — Reaproveitar toggle de confirmação do módulo `pagamentos`
+- [x] EMAIL-04 — Implementar lógica de fallback no disparo de mensagens (módulo `mensagens`)
+- [x] EMAIL-05 — Adicionar campo `canal` em `MensagemEnviada` + log estruturado
 
 ## Critérios de conclusão da sprint
 
-- [ ] Todas as tasks PAG-01 a PAG-04, MSG-01 a MSG-05 e EMAIL-01 a EMAIL-05 concluídas
-- [ ] Máquina de estados de `Cobranca` impede transição inválida (ex: paga → pendente)
-- [ ] Webhook do Asaas validado por token antes de processar (`ASAAS_WEBHOOK_TOKEN`)
-- [ ] Régua fixa (lembrete, vencimento, D+1, D+3) disparando nos prazos corretos em teste de integração
-- [ ] Fallback de e-mail testado com toggle ligado/desligado
-- [ ] Checklist do `claude.md` (seção 7.2) validado
-- [ ] `tasks.md` de `pagamentos`, `mensagens` e `notificacoes-email` com os checkboxes marcados
+- [x] Todas as tasks PAG-01 a PAG-04, MSG-01 a MSG-04 e EMAIL-01 a EMAIL-05 concluídas (MSG-05 parcial — painel de erros fica pro módulo `dashboard`, ainda não iniciado)
+- [x] Máquina de estados de `Cobranca` impede transição inválida (ex: paga → pendente)
+- [x] Webhook do Asaas validado por token antes de processar (`ASAAS_WEBHOOK_TOKEN`)
+- [x] Régua fixa (lembrete, vencimento, D+1, D+3) disparando nos prazos corretos em teste de integração
+- [x] Fallback de e-mail testado com toggle ligado/desligado
+- [x] Checklist do `claude.md` (seção 7.2) validado
+- [x] `tasks.md` de `pagamentos`, `mensagens` e `notificacoes-email` com os checkboxes marcados
 
 ## Próxima sprint
 

@@ -32,6 +32,13 @@ enum TipoMensagem {
   @@map("tipo_mensagem")
 }
 
+enum CanalNotificacao {
+  whatsapp
+  email
+
+  @@map("canal_notificacao")
+}
+
 model Cliente {
   id                String         @id @default(uuid())
   nome              String
@@ -91,11 +98,12 @@ model Cobranca {
 }
 
 model MensagemEnviada {
-  id           String        @id @default(uuid())
-  cobrancaId   String        @map("cobranca_id")
+  id           String            @id @default(uuid())
+  cobrancaId   String            @map("cobranca_id")
   tipo         TipoMensagem
-  enviadoEm    DateTime      @default(now()) @map("enviado_em")
-  statusEnvio  String        @map("status_envio")
+  enviadoEm    DateTime          @default(now()) @map("enviado_em")
+  statusEnvio  String            @map("status_envio")
+  canal        CanalNotificacao  @default(whatsapp)
 
   cobranca Cobranca @relation(fields: [cobrancaId], references: [id])
 

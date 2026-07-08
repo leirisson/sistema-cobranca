@@ -13,6 +13,7 @@ export class PrismaMensagemEnviadaRepository implements MensagemEnviadaRepositor
         cobrancaId: mensagem.cobrancaId,
         tipo: mensagem.tipo,
         statusEnvio: mensagem.statusEnvio,
+        canal: mensagem.canal,
         enviadoEm: mensagem.enviadoEm,
       },
     });

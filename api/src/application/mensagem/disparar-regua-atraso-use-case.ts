@@ -1,9 +1,12 @@
 import type { ClienteRepository } from "../../domain/cliente/cliente-repository.js";
 import type { CobrancaRepository } from "../../domain/cobranca/cobranca-repository.js";
 import type { CanalMensagem } from "../../domain/mensagem/canal-mensagem.js";
+import type { CanalNotificacao } from "../../domain/mensagem/canal-notificacao.js";
 import { MensagemEnviada } from "../../domain/mensagem/mensagem-enviada.js";
 import type { MensagemEnviadaRepository } from "../../domain/mensagem/mensagem-enviada-repository.js";
+import { montarEmailMensagem } from "../../domain/mensagem/template-email.js";
 import { montarTextoMensagem, type TipoMensagemComTemplate } from "../../domain/mensagem/template-mensagem.js";
+import { enviarMensagemComFallback } from "./enviar-mensagem-com-fallback.js";
 
 const MILISSEGUNDOS_POR_DIA = 1000 * 60 * 60 * 24;
 const MARCOS_REGUA: Record<number, TipoMensagemComTemplate> = {
@@ -18,6 +21,7 @@ export class DispararReguaAtrasoUseCase {
     private readonly cobrancaRepository: CobrancaRepository,
     private readonly mensagemEnviadaRepository: MensagemEnviadaRepository,
     private readonly canalMensagem: CanalMensagem,
+    private readonly canalNotificacao: CanalNotificacao,
   ) {}
 
   async executar(hoje: Date): Promise<void> {
@@ -56,15 +60,27 @@ export class DispararReguaAtrasoUseCase {
         linkPagamento: cobranca.linkPagamento,
       });
 
-      let statusEnvio: "ENVIADO" | "FALHA" = "ENVIADO";
+      const email = montarEmailMensagem(tipo, {
+        nomeCliente: cliente.nome,
+        valor: cobranca.valor,
+        vencimento: cobranca.vencimento,
+        linkPagamento: cobranca.linkPagamento,
+      });
 
-      try {
-        await this.canalMensagem.enviarMensagem({ telefone: telefonePrincipal.numero, texto });
-      } catch {
-        statusEnvio = "FALHA";
-      }
+      const resultado = await enviarMensagemComFallback(this.canalMensagem, this.canalNotificacao, {
+        telefone: telefonePrincipal.numero,
+        texto,
+        email: cliente.email,
+        assuntoEmail: email.assunto,
+        corpoHtmlEmail: email.corpoHtml,
+      });
 
-      const mensagem = MensagemEnviada.criar({ cobrancaId: cobranca.id, tipo, statusEnvio });
+      const mensagem = MensagemEnviada.criar({
+        cobrancaId: cobranca.id,
+        tipo,
+        statusEnvio: resultado.statusEnvio,
+        canal: resultado.canal,
+      });
       await this.mensagemEnviadaRepository.salvar(mensagem);
     }
   }

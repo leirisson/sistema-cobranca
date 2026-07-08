@@ -1,15 +1,15 @@
-import type { CanalMensagem } from "../../domain/mensagem/canal-mensagem.js";
-import type { CanalNotificacao } from "../../domain/mensagem/canal-notificacao.js";
+import { enviarMensagemComFallback } from "../../application/mensagem/enviar-mensagem-com-fallback.js";
 import type { ClienteRepository } from "../../domain/cliente/cliente-repository.js";
 import { ClienteNaoEncontradoError } from "../../domain/cliente/cliente-nao-encontrado-error.js";
 import type { Cobranca } from "../../domain/cobranca/cobranca.js";
+import type { NotificadorConfirmacao } from "../../domain/cobranca/notificador-confirmacao.js";
+import type { CanalMensagem } from "../../domain/mensagem/canal-mensagem.js";
+import type { CanalNotificacao } from "../../domain/mensagem/canal-notificacao.js";
 import { MensagemEnviada } from "../../domain/mensagem/mensagem-enviada.js";
 import type { MensagemEnviadaRepository } from "../../domain/mensagem/mensagem-enviada-repository.js";
-import { montarEmailMensagem } from "../../domain/mensagem/template-email.js";
-import { montarTextoMensagem } from "../../domain/mensagem/template-mensagem.js";
-import { enviarMensagemComFallback } from "./enviar-mensagem-com-fallback.js";
+import { montarEmailConfirmacao, montarTextoConfirmacao } from "../../domain/mensagem/template-confirmacao.js";
 
-export class DispararLembreteInicialUseCase {
+export class MensagemNotificadorConfirmacao implements NotificadorConfirmacao {
   constructor(
     private readonly clienteRepository: ClienteRepository,
     private readonly mensagemEnviadaRepository: MensagemEnviadaRepository,
@@ -17,7 +17,7 @@ export class DispararLembreteInicialUseCase {
     private readonly canalNotificacao: CanalNotificacao,
   ) {}
 
-  async executar(cobranca: Cobranca): Promise<void> {
+  async notificarPagamentoConfirmado(cobranca: Cobranca): Promise<void> {
     const cliente = await this.clienteRepository.buscarPorId(cobranca.clienteId);
 
     if (!cliente) {
@@ -30,19 +30,8 @@ export class DispararLembreteInicialUseCase {
       throw new ClienteNaoEncontradoError(cobranca.clienteId);
     }
 
-    const texto = montarTextoMensagem("LEMBRETE", {
-      nomeCliente: cliente.nome,
-      valor: cobranca.valor,
-      vencimento: cobranca.vencimento,
-      linkPagamento: cobranca.linkPagamento,
-    });
-
-    const email = montarEmailMensagem("LEMBRETE", {
-      nomeCliente: cliente.nome,
-      valor: cobranca.valor,
-      vencimento: cobranca.vencimento,
-      linkPagamento: cobranca.linkPagamento,
-    });
+    const texto = montarTextoConfirmacao({ nomeCliente: cliente.nome, valor: cobranca.valor });
+    const email = montarEmailConfirmacao({ nomeCliente: cliente.nome, valor: cobranca.valor });
 
     const resultado = await enviarMensagemComFallback(this.canalMensagem, this.canalNotificacao, {
       telefone: telefonePrincipal.numero,
@@ -54,7 +43,7 @@ export class DispararLembreteInicialUseCase {
 
     const mensagem = MensagemEnviada.criar({
       cobrancaId: cobranca.id,
-      tipo: "LEMBRETE",
+      tipo: "CONFIRMACAO",
       statusEnvio: resultado.statusEnvio,
       canal: resultado.canal,
     });

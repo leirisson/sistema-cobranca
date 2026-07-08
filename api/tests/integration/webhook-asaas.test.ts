@@ -20,6 +20,7 @@ describe("POST /webhooks/asaas", () => {
   });
 
   afterEach(async () => {
+    await prisma.mensagemEnviada.deleteMany();
     await prisma.cobranca.deleteMany();
     await prisma.telefoneCliente.deleteMany();
     await prisma.cliente.deleteMany();

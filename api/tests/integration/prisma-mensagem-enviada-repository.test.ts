@@ -67,6 +67,22 @@ describe("PrismaMensagemEnviadaRepository", () => {
     expect(registros).toHaveLength(1);
     expect(registros[0]?.tipo).toBe("LEMBRETE");
     expect(registros[0]?.statusEnvio).toBe("ENVIADO");
+    expect(registros[0]?.canal).toBe("whatsapp");
+  });
+
+  it("salva e recupera um registro enviado por e-mail (EMAIL-R-06)", async () => {
+    const cobranca = await criarClienteECobrancaSalvos(new Date("2026-08-10"));
+    const mensagem = MensagemEnviada.criar({
+      cobrancaId: cobranca.id,
+      tipo: "LEMBRETE",
+      statusEnvio: "ENVIADO",
+      canal: "email",
+    });
+
+    await repository.salvar(mensagem);
+
+    const registros = await prisma.mensagemEnviada.findMany({ where: { cobrancaId: cobranca.id } });
+    expect(registros[0]?.canal).toBe("email");
   });
 
   it("identifica mensagem já enviada para a cobrança e tipo (deduplicação)", async () => {
