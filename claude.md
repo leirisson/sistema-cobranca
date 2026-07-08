@@ -112,7 +112,8 @@ sistema-cobranca/
 
 | Model | Tabela | Responsabilidade |
 |-------|--------|-----------------|
-| `Cliente` | `clientes` | Nome, telefone, e-mail, documento, valor de cobrança, dia de vencimento, status (ATIVO/INATIVO) |
+| `Cliente` | `clientes` | Nome, documento (CPF/CNPJ, obrigatório), e-mail, endereço opcional, inscrição estadual opcional, nome de contato opcional, referência de serviço opcional, valor de cobrança, dia de vencimento, status (ATIVO/INATIVO) |
+| `TelefoneCliente` | `telefones_cliente` | Telefone (E.164) de um cliente, 1:N — pelo menos 1 obrigatório, exatamente 1 marcado `principal` (MVP v1.2) |
 | `Cobranca` | `cobrancas` | Cobrança gerada para um cliente: valor, vencimento, status (PENDENTE/PAGO/ATRASADO/CANCELADO), dados do gateway |
 | `MensagemEnviada` | `mensagens_enviadas` | Registro de mensagem enviada por cobrança (LEMBRETE/VENCIMENTO/ATRASO/CONFIRMACAO) |
 
@@ -179,7 +180,13 @@ _Nenhuma integração implementada ainda (Asaas e Evolution API entram nos módu
   **Solução:** `docker-compose.yml` agora declara `name: cobracerta` no topo, isolando o projeto Compose definitivamente por nome (não mais por pasta). Portas também migradas para evitar conflito com outros serviços já em uso na máquina: Postgres `5433:5432` (era `5432:5432`), Redis `6380:6379` (era `6379:6379`). `DATABASE_URL`/`REDIS_PORT` em `.env.example` e `.env.test` atualizados de acordo.
   **Regra geral:** todo `docker-compose.yml` novo neste ambiente (múltiplos projetos na mesma máquina) **deve** declarar `name:` explícito — nunca confiar no nome de pasta implícito.
 
-### 6.5 Outros
+### 6.5 Evolução de Schema já Commitado
+
+- **Problema:** o MVP v1.2 (`api/mvp-v1/mvp v1.2.md`) chegou depois do módulo `clientes` já implementado, testado e commitado com `telefone: string` único e `documento` opcional. Mudar para `telefones` (lista, 1:N) e `documento` obrigatório quebra a forma pública da entidade `Cliente` (`ClienteProps`/`ClienteEdicao`) e o schema Prisma ao mesmo tempo.
+  **Solução:** como o projeto está em dev/pré-produção (nenhum cliente real cadastrado ainda), a mudança foi feita diretamente na entidade e no schema, sem shim de compatibilidade: `telefone` virou tabela `TelefoneCliente` (1:N, exatamente 1 `principal`), `documento` passou a exigir 11 (CPF) ou 14 (CNPJ) dígitos. Migration `20260708180622_enriquecer_cadastro_cliente_v1_2` aplicada com `ALTER COLUMN documento SET NOT NULL` — só funciona porque a tabela estava vazia nos bancos dev/test; em produção com dados reais precisaria de um passo de backfill antes.
+  **Regra geral:** specs incrementais (`mvp-v*.md` ou `spec.md` de um módulo já implementado) que mudam o shape de uma entidade existente devem ser tratadas como breaking change direto enquanto não houver dados de produção — não vale a pena manter compatibilidade retroativa para um shape que nunca foi usado de verdade.
+
+### 6.6 Outros
 
 - O `.gitignore` da raiz originalmente continha `specs`, `mvp-v1`, `mvp-v2`, `mvp-v3` e `claude.md`, o que ignorava silenciosamente toda a documentação de specs/MVP dentro de `api/` e este próprio arquivo.
   **Solução:** `.gitignore` da raiz reduzido para conter apenas `.claude` (config local do Claude Code). Specs e `claude.md` agora são versionados normalmente.
@@ -251,6 +258,9 @@ npx tsc -p tsconfig.test.json --noEmit
 | 2026-07-08 | Ciclo de cobrança para checagem de duplicidade (COB-R-04) definido como mês/ano calendário do campo `vencimento`, não a data exata | Decisão explícita do usuário: se o dia de vencimento do cliente mudar no meio do mês, ainda assim só pode haver uma cobrança não cancelada por mês; vencimento exato seria frágil demais a essa mudança |
 | 2026-07-08 | Sprint 2 dividida em duas etapas: núcleo DDD (entidade `Cobranca`, `GerarCobrancaUseCase`, portas `GatewayPagamento`/`CobrancaRepository`, `PrismaCobrancaRepository`) primeiro, `AsaasGateway` real (HTTP contra sandbox) e job BullMQ depois | Decisão explícita do usuário: permite fechar o ciclo TDD (RED-GREEN-REFACTOR) do domínio/application sem depender de credenciais/sandbox do Asaas ainda não configuradas |
 | 2026-07-08 | `vitest.config.ts` roda todos os arquivos de teste sequencialmente (`fileParallelism: false`) | Testes de integração de `clientes` e `cobrancas` compartilham o mesmo banco Postgres real; em paralelo, o `afterEach` de um arquivo apagava dados que o outro ainda usava (violação de FK intermitente). Ver seção 6.3 |
+| 2026-07-08 | MVP v1.2 (enriquecimento de cadastro) aplicado como breaking change direto na entidade `Cliente` e no schema Prisma, sem shim de compatibilidade | Decisão explícita do usuário: projeto ainda em dev/pré-produção, sem clientes reais cadastrados — não há dado de produção pra migrar/preservar, então manter os dois shapes (antigo e novo) só adicionaria complexidade sem benefício. Ver seção 6.5 |
+| 2026-07-08 | `documento` (CPF/CNPJ) tornado obrigatório na entidade `Cliente`, com validação apenas de tamanho (11 ou 14 dígitos), sem dígito verificador | Decisão explícita do usuário, alinhada à evidência do MVP v1.2 (documento presente em 100% dos orçamentos reais analisados); validação de dígito verificador explicitamente fora de escopo do v1.2 |
+| 2026-07-08 | `telefone` (string única) virou `TelefoneCliente` (tabela 1:N), com exatamente 1 telefone marcado `principal` por cliente, validado na entidade (não só no banco) | Regra geral do projeto (`api/specs/_geral/rules.md` §7): entidade protege a invariante "exatamente 1 principal" independente de quem chama, e o telefone principal é quem o módulo MSG (ainda não implementado) vai usar por padrão pro disparo de WhatsApp |
 
 ---
 
@@ -269,6 +279,17 @@ npx tsc -p tsconfig.test.json --noEmit
 ## 10. Linha do Tempo do Projeto (0% → 100%)
 
 > Registro cronológico de marcos. Cada entrada nova vai **no topo** da lista (mais recente primeiro), com data e um resumo do que mudou de estado.
+
+### 2026-07-08 — MVP v1.2: enriquecimento do cadastro de Cliente (CAD-06 a CAD-08) via TDD
+- Aplicado via ciclo RED-GREEN-REFACTOR (skills `/tdd-workflow` + `/senior-backend`) sobre o módulo `clientes` já implementado, a partir da spec incremental `api/mvp-v1/mvp v1.2.md` (evidência de orçamentos reais de um prestador de manutenção veicular). Specs atualizadas em `api/specs/clientes/spec.md`, `rules.md`, `tasks.md` (novos IDs `CAD-06` a `CAD-08`, `CAD-EXT-R-01` a `CAD-EXT-R-04`):
+  - `src/domain/cliente/cliente.ts` — `documento` passou de opcional/sem validação para obrigatório com formato CPF (11 dígitos) ou CNPJ (14 dígitos), exposto via `tipoDocumento`; `telefone: string` virou `telefones: TelefoneClienteProps[]`, com invariante de exatamente 1 `principal` (`telefonePrincipal` getter); novos campos opcionais `inscricaoEstadual`, `endereco` (rua/número/bairro/cidade/uf/cep), `nomeContato`, `referenciaServico`
+  - `prisma/schema.prisma` — `Cliente` ganhou os campos opcionais novos e `documento` não-nulo; nova tabela `TelefoneCliente` (1:N, índice em `cliente_id`); migration `20260708180622_enriquecer_cadastro_cliente_v1_2` aplicada em `cobracerta` (dev) e `cobracerta_test` (test)
+  - `src/infra/database/prisma-cliente-repository.ts` — `salvar()` agora roda em `$transaction` (upsert de `Cliente` + replace-all de `TelefoneCliente` via delete + createMany); `buscarPorId`/`buscarPorNome`/`listarAtivos` incluem `telefones` na query
+  - Testes de use case (`criar`/`editar`/`inativar-cliente-use-case.test.ts`) e de `gerar-cobranca-use-case.test.ts` atualizados para o novo shape de `ClienteProps`
+- Testes: 23 unitários de entidade (13 novos, cobrindo CAD-EXT-R-01 a R-04) + 9 de integração (3 novos: múltiplos telefones, campos opcionais de endereço/contato) — suíte completa do projeto em 60 testes, todos verdes.
+- Lint e typecheck (ambos tsconfigs) limpos; `npx prisma migrate status` sem pendências em dev e test.
+- **Decisão de arquitetura registrada na seção 6.5 e ADR:** mudança tratada como breaking change direto (sem shim de compatibilidade), já que o projeto está em dev/pré-produção e não há clientes reais cadastrados ainda.
+- **Não feito ainda:** rotas HTTP para o módulo clientes seguem não implementadas (igual Sprint 1); módulo `mensagens` (que vai consumir `telefonePrincipal`) segue não iniciado.
 
 ### 2026-07-08 — Sprint 2: núcleo DDD de Cobranças (COB) via TDD — ~25%
 - Implementado via ciclo RED-GREEN-REFACTOR (skill `/tdd-workflow`), fechando COB-01, COB-02, COB-04 e a parte de porta de COB-03 (`api/specs/cobrancas/tasks.md`, `api/sprints/sprint-02-cobrancas.md`):

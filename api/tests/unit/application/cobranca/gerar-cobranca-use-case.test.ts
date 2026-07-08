@@ -32,7 +32,8 @@ describe("GerarCobrancaUseCase", () => {
   function clienteAtivo(diaVencimento: number) {
     return Cliente.criar({
       nome: "Maria Silva",
-      telefone: "+5511999998888",
+      documento: "12345678900",
+      telefones: [{ numero: "+5511999998888", principal: true }],
       valorCobranca: 150,
       diaVencimento,
     });

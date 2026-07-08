@@ -18,7 +18,8 @@ describe("EditarClienteUseCase", () => {
   it("edita dados de um cliente existente e persiste a mudança (CAD-US-04)", async () => {
     const cliente = Cliente.criar({
       nome: "Maria Silva",
-      telefone: "+5511999998888",
+      documento: "12345678900",
+      telefones: [{ numero: "+5511999998888", principal: true }],
       valorCobranca: 150,
       diaVencimento: 10,
     });
@@ -42,7 +43,8 @@ describe("EditarClienteUseCase", () => {
   it("propaga erro de domínio e não persiste edição inválida", async () => {
     const cliente = Cliente.criar({
       nome: "Maria Silva",
-      telefone: "+5511999998888",
+      documento: "12345678900",
+      telefones: [{ numero: "+5511999998888", principal: true }],
       valorCobranca: 150,
       diaVencimento: 10,
     });

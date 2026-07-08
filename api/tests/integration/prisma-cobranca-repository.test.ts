@@ -16,6 +16,7 @@ describe("PrismaCobrancaRepository", () => {
 
   afterEach(async () => {
     await prisma.cobranca.deleteMany();
+    await prisma.telefoneCliente.deleteMany();
     await prisma.cliente.deleteMany();
   });
 
@@ -26,7 +27,8 @@ describe("PrismaCobrancaRepository", () => {
   async function criarClienteSalvo() {
     const cliente = Cliente.criar({
       nome: "Maria Silva",
-      telefone: "+5511999998888",
+      documento: "12345678900",
+      telefones: [{ numero: "+5511999998888", principal: true }],
       valorCobranca: 150,
       diaVencimento: 10,
     });

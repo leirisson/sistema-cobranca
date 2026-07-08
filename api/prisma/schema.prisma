@@ -33,20 +33,41 @@ enum TipoMensagem {
 }
 
 model Cliente {
-  id             String         @id @default(uuid())
-  nome           String
-  telefone       String
-  email          String?
-  documento      String?
-  valorCobranca  Decimal        @map("valor_cobranca") @db.Decimal(10, 2)
-  diaVencimento  Int            @map("dia_vencimento")
-  status         StatusCliente  @default(ATIVO)
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
+  id                String         @id @default(uuid())
+  nome              String
+  email             String?
+  documento         String
+  valorCobranca     Decimal        @map("valor_cobranca") @db.Decimal(10, 2)
+  diaVencimento     Int            @map("dia_vencimento")
+  status            StatusCliente  @default(ATIVO)
+  inscricaoEstadual String?        @map("inscricao_estadual")
+  enderecoRua       String?        @map("endereco_rua")
+  enderecoNumero    String?        @map("endereco_numero")
+  enderecoBairro    String?        @map("endereco_bairro")
+  enderecoCidade    String?        @map("endereco_cidade")
+  enderecoUf        String?        @map("endereco_uf")
+  enderecoCep       String?        @map("endereco_cep")
+  nomeContato       String?        @map("nome_contato")
+  referenciaServico String?        @map("referencia_servico")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
 
+  telefones TelefoneCliente[]
   cobrancas Cobranca[]
 
   @@map("clientes")
+}
+
+model TelefoneCliente {
+  id        String  @id @default(uuid())
+  clienteId String  @map("cliente_id")
+  numero    String
+  principal Boolean @default(false)
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+
+  @@index([clienteId])
+  @@map("telefones_cliente")
 }
 
 model Cobranca {

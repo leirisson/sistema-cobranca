@@ -16,7 +16,8 @@ describe("CriarClienteUseCase", () => {
   it("cria e persiste um cliente ativo (CAD-US-01, CAD-R-04)", async () => {
     const cliente = await useCase.executar({
       nome: "Maria Silva",
-      telefone: "+5511999998888",
+      documento: "12345678900",
+      telefones: [{ numero: "+5511999998888", principal: true }],
       valorCobranca: 150,
       diaVencimento: 10,
     });
@@ -30,7 +31,8 @@ describe("CriarClienteUseCase", () => {
     await expect(
       useCase.executar({
         nome: "",
-        telefone: "+5511999998888",
+        documento: "12345678900",
+        telefones: [{ numero: "+5511999998888", principal: true }],
         valorCobranca: 150,
         diaVencimento: 10,
       }),
