@@ -6,6 +6,7 @@ export default defineConfig({
     env: { NODE_ENV: "test" },
     setupFiles: ["./tests/setup-env.ts"],
     include: ["tests/**/*.test.ts"],
+    fileParallelism: false,
     coverage: {
       provider: "v8",
       include: ["src/domain/**", "src/application/**"],

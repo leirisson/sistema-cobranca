@@ -1,10 +1,10 @@
 # Tasks — Cobranças (COB)
 
-> Fase TASKS ainda não iniciada. Preencher quando o módulo `cobrancas` entrar em execução,
-> quebrando cada user story/requisito de `spec.md` em tasks executáveis e rastreáveis pelo ID (ex: `COB-01`).
+> Fase TASKS: núcleo DDD (domínio + application + repositório Prisma) implementado via TDD.
+> Job BullMQ e adapter HTTP real do Asaas ficam para a próxima etapa desta sprint (ver observações).
 
-- [ ] COB-01 — Implementar job agendado (BullMQ) + `GerarCobrancaUseCase`
-- [ ] COB-02 — Implementar config `COBRANCA_ANTECEDENCIA_DIAS`
-- [ ] COB-03 — Implementar porta `GatewayPagamento` e adapter `AsaasGateway`
-- [ ] COB-04 — Implementar checagem de duplicidade em `CobrancaRepository`
-- [ ] COB-05 — Configurar log estruturado + painel de erros (integração com `dashboard`)
+- [x] COB-01 — Implementar `GerarCobrancaUseCase` (`src/application/cobranca/gerar-cobranca-use-case.ts`). Job agendado (BullMQ) ainda **não implementado** — falta apenas o wrapper que chama `useCase.executar(new Date())` num cron diário.
+- [x] COB-02 — Config `COBRANCA_ANTECEDENCIA_DIAS` já existia em `env.ts`; `GerarCobrancaUseCase` recebe o valor via construtor.
+- [~] COB-03 — Porta `GatewayPagamento` implementada (`src/domain/cobranca/gateway-pagamento.ts`) e testada com `FakeGatewayPagamento`. Adapter `AsaasGateway` (HTTP real contra sandbox) **ainda não implementado**.
+- [x] COB-04 — Checagem de duplicidade em `CobrancaRepository.existeParaCicloVigente` (fake em memória + `PrismaCobrancaRepository`, ciclo = mês/ano do vencimento, ignora cobranças `CANCELADO`).
+- [ ] COB-05 — Log estruturado + painel de erros (integração com `dashboard`) — não iniciado.
