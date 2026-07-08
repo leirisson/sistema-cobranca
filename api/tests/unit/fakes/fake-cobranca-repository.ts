@@ -18,6 +18,10 @@ export class FakeCobrancaRepository implements CobrancaRepository {
     return this.cobrancas.find((cobranca) => cobranca.id === id) ?? null;
   }
 
+  async buscarPorGatewayChargeId(gatewayChargeId: string): Promise<Cobranca | null> {
+    return this.cobrancas.find((cobranca) => cobranca.gatewayChargeId === gatewayChargeId) ?? null;
+  }
+
   async existeParaCicloVigente(clienteId: string, vencimento: Date): Promise<boolean> {
     return this.cobrancas.some(
       (cobranca) =>

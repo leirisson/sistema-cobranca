@@ -19,6 +19,7 @@ const envSchema = z.object({
   EVOLUTION_INSTANCE: z.string(),
 
   COBRANCA_ANTECEDENCIA_DIAS: z.coerce.number().int().positive().default(5),
+  CONFIRMACAO_PAGAMENTO_HABILITADA: z.coerce.boolean().default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;

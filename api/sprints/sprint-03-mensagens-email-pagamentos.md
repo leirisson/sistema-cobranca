@@ -1,6 +1,6 @@
 # Sprint 3 — Mensagens (MSG) + Notificações por E-mail (EMAIL) + Pagamentos (PAG)
 
-> Status: não iniciada
+> Status: em andamento — PAG concluído (núcleo DDD via TDD), MSG e EMAIL pendentes
 > Depende de: [Sprint 2 — Cobranças](sprint-02-cobrancas.md) (`Cobranca` precisa existir para disparar mensagem/confirmar pagamento)
 > Specs de referência:
 > - `api/specs/mensagens/spec.md`, `rules.md`, `tasks.md`
@@ -21,10 +21,10 @@ Os três módulos foram agrupados na mesma sprint porque são interdependentes (
 
 ## Tasks — Pagamentos (PAG)
 
-- [ ] PAG-01 — Implementar endpoint de webhook + `Cobranca.marcarComoPaga`
-- [ ] PAG-02 — Implementar validação de `ASAAS_WEBHOOK_TOKEN`
-- [ ] PAG-03 — Implementar máquina de estados da entidade `Cobranca`
-- [ ] PAG-04 — Implementar toggle de confirmação + disparo via módulo `mensagens`
+- [x] PAG-01 — Implementar endpoint de webhook + `Cobranca.marcarComoPaga`
+- [x] PAG-02 — Implementar validação de `ASAAS_WEBHOOK_TOKEN`
+- [x] PAG-03 — Implementar máquina de estados da entidade `Cobranca`
+- [~] PAG-04 — Toggle de confirmação implementado; disparo real fica pendente até o módulo `mensagens` existir
 
 ## Tasks — Mensagens (MSG)
 

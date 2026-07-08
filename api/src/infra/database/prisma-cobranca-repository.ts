@@ -35,6 +35,12 @@ export class PrismaCobrancaRepository implements CobrancaRepository {
     return registro ? this.paraEntidade(registro) : null;
   }
 
+  async buscarPorGatewayChargeId(gatewayChargeId: string): Promise<Cobranca | null> {
+    const registro = await this.prisma.cobranca.findUnique({ where: { gatewayChargeId } });
+
+    return registro ? this.paraEntidade(registro) : null;
+  }
+
   async existeParaCicloVigente(clienteId: string, vencimento: Date): Promise<boolean> {
     const inicioDoMes = new Date(Date.UTC(vencimento.getUTCFullYear(), vencimento.getUTCMonth(), 1));
     const inicioDoProximoMes = new Date(Date.UTC(vencimento.getUTCFullYear(), vencimento.getUTCMonth() + 1, 1));

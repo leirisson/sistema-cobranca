@@ -76,7 +76,7 @@ model Cobranca {
   valor            Decimal        @db.Decimal(10, 2)
   vencimento       DateTime       @db.Date
   status           StatusCobranca @default(PENDENTE)
-  gatewayChargeId  String?        @map("gateway_charge_id")
+  gatewayChargeId  String?        @unique @map("gateway_charge_id")
   linkPagamento    String?        @map("link_pagamento")
   paidAt           DateTime?      @map("paid_at")
   createdAt        DateTime       @default(now()) @map("created_at")

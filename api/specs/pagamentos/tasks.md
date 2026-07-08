@@ -1,9 +1,8 @@
 # Tasks — Pagamentos (PAG)
 
-> Fase TASKS ainda não iniciada. Preencher quando o módulo `pagamentos` entrar em execução,
-> quebrando cada user story/requisito de `spec.md` em tasks executáveis e rastreáveis pelo ID (ex: `PAG-01`).
+> Sprint 3 (PAG) concluída via TDD. Ver `api/sprints/sprint-03-mensagens-email-pagamentos.md`.
 
-- [ ] PAG-01 — Implementar endpoint de webhook + `Cobranca.marcarComoPaga`
-- [ ] PAG-02 — Implementar validação de `ASAAS_WEBHOOK_TOKEN`
-- [ ] PAG-03 — Implementar máquina de estados da entidade `Cobranca`
-- [ ] PAG-04 — Implementar toggle de confirmação + disparo via módulo `mensagens`
+- [x] PAG-01 — Implementar endpoint de webhook (`POST /webhooks/asaas`) + `ConfirmarPagamentoUseCase` usando `Cobranca.marcarComoPaga`
+- [x] PAG-02 — Implementar validação de `ASAAS_WEBHOOK_TOKEN` (header `asaas-access-token`, rejeita com 401 sem tocar na cobrança)
+- [x] PAG-03 — Máquina de estados da entidade `Cobranca` (Sprint 2) reaproveitada; `ConfirmarPagamentoUseCase` trata idempotência (PAGO/CANCELADO → ignora sem erro) antes de chamar a entidade
+- [~] PAG-04 — Toggle `CONFIRMACAO_PAGAMENTO_HABILITADA` implementado com porta `NotificadorConfirmacao`; disparo real via módulo `mensagens` ainda não existe — `LogNotificadorConfirmacao` (infra) só loga por enquanto
