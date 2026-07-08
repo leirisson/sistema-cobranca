@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum StatusCliente {
+  ATIVO
+  INATIVO
+
+  @@map("status_cliente")
+}
+
+enum StatusCobranca {
+  PENDENTE
+  PAGO
+  ATRASADO
+  CANCELADO
+
+  @@map("status_cobranca")
+}
+
+enum TipoMensagem {
+  LEMBRETE
+  VENCIMENTO
+  ATRASO
+  CONFIRMACAO
+
+  @@map("tipo_mensagem")
+}
+
+model Cliente {
+  id             String         @id @default(uuid())
+  nome           String
+  telefone       String
+  email          String?
+  documento      String?
+  valorCobranca  Decimal        @map("valor_cobranca") @db.Decimal(10, 2)
+  diaVencimento  Int            @map("dia_vencimento")
+  status         StatusCliente  @default(ATIVO)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  cobrancas Cobranca[]
+
+  @@map("clientes")
+}
+
+model Cobranca {
+  id               String         @id @default(uuid())
+  clienteId        String         @map("cliente_id")
+  valor            Decimal        @db.Decimal(10, 2)
+  vencimento       DateTime       @db.Date
+  status           StatusCobranca @default(PENDENTE)
+  gatewayChargeId  String?        @map("gateway_charge_id")
+  linkPagamento    String?        @map("link_pagamento")
+  paidAt           DateTime?      @map("paid_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  cliente           Cliente            @relation(fields: [clienteId], references: [id])
+  mensagensEnviadas MensagemEnviada[]
+
+  @@index([clienteId])
+  @@index([status])
+  @@map("cobrancas")
+}
+
+model MensagemEnviada {
+  id           String        @id @default(uuid())
+  cobrancaId   String        @map("cobranca_id")
+  tipo         TipoMensagem
+  enviadoEm    DateTime      @default(now()) @map("enviado_em")
+  statusEnvio  String        @map("status_envio")
+
+  cobranca Cobranca @relation(fields: [cobrancaId], references: [id])
+
+  @@index([cobrancaId])
+  @@map("mensagens_enviadas")
+}
