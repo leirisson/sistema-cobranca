@@ -1,6 +1,6 @@
 # Sprint 3 — Mensagens (MSG) + Notificações por E-mail (EMAIL) + Pagamentos (PAG)
 
-> Status: em andamento — PAG concluído (núcleo DDD via TDD), MSG e EMAIL pendentes
+> Status: em andamento — PAG e MSG concluídos (núcleo DDD via TDD), EMAIL pendente
 > Depende de: [Sprint 2 — Cobranças](sprint-02-cobrancas.md) (`Cobranca` precisa existir para disparar mensagem/confirmar pagamento)
 > Specs de referência:
 > - `api/specs/mensagens/spec.md`, `rules.md`, `tasks.md`
@@ -28,11 +28,11 @@ Os três módulos foram agrupados na mesma sprint porque são interdependentes (
 
 ## Tasks — Mensagens (MSG)
 
-- [ ] MSG-01 — Implementar job de disparo + template de lembrete
-- [ ] MSG-02 — Implementar régua fixa (D0, D+1, D+3)
-- [ ] MSG-03 — Implementar checagem de status antes do disparo
-- [ ] MSG-04 — Implementar entidade/tabela `MensagemEnviada`
-- [ ] MSG-05 — Configurar log estruturado + painel de erros (integração com `dashboard`)
+- [x] MSG-01 — Implementar template de lembrete + `DispararLembreteInicialUseCase`
+- [x] MSG-02 — Implementar régua fixa (D0, D+1, D+3)
+- [x] MSG-03 — Implementar checagem de status antes do disparo
+- [x] MSG-04 — Implementar entidade/tabela `MensagemEnviada`
+- [~] MSG-05 — Log estruturado via Pino (via try/catch nos use cases); painel de erros no `dashboard` pendente (módulo não iniciado)
 
 ## Tasks — Notificações por E-mail (EMAIL)
 

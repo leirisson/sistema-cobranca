@@ -56,6 +56,14 @@ export class PrismaCobrancaRepository implements CobrancaRepository {
     return registro !== null;
   }
 
+  async listarPendentesOuAtrasadas(): Promise<Cobranca[]> {
+    const registros = await this.prisma.cobranca.findMany({
+      where: { status: { in: ["PENDENTE", "ATRASADO"] } },
+    });
+
+    return registros.map((registro) => this.paraEntidade(registro));
+  }
+
   private paraEntidade(registro: CobrancaPrisma): Cobranca {
     return Cobranca.restaurar({
       id: registro.id,

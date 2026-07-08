@@ -31,4 +31,8 @@ export class FakeCobrancaRepository implements CobrancaRepository {
         cobranca.vencimento.getUTCMonth() === vencimento.getUTCMonth(),
     );
   }
+
+  async listarPendentesOuAtrasadas(): Promise<Cobranca[]> {
+    return this.cobrancas.filter((cobranca) => cobranca.status === "PENDENTE" || cobranca.status === "ATRASADO");
+  }
 }

@@ -126,8 +126,10 @@ sistema-cobranca/
 | `EditarClienteUseCase` | `src/application/cliente/editar-cliente-use-case.ts` | CAD-04 — edita dados de cliente existente reaplicando invariantes |
 | `GerarCobrancaUseCase` | `src/application/cobranca/gerar-cobranca-use-case.ts` | COB-01 — para cada cliente ativo, calcula vencimento do ciclo, checa duplicidade (COB-R-04), cria cobrança no `GatewayPagamento` e persiste como `PENDENTE` (COB-R-02, COB-R-03, COB-R-05) |
 | `ConfirmarPagamentoUseCase` | `src/application/cobranca/confirmar-pagamento-use-case.ts` | PAG-01 — busca cobrança por `gatewayChargeId`, ignora sem erro se já `PAGO`/`CANCELADO` (PAG-R-04, idempotência), senão chama `Cobranca.marcarComoPaga` e, se `CONFIRMACAO_PAGAMENTO_HABILITADA`, dispara `NotificadorConfirmacao` (PAG-R-05) |
+| `DispararLembreteInicialUseCase` | `src/application/mensagem/disparar-lembrete-inicial-use-case.ts` | MSG-01 — dado uma `Cobranca` recém-gerada, monta texto de LEMBRETE e envia pro `telefonePrincipal` do cliente via `CanalMensagem`, registrando `MensagemEnviada` (ENVIADO/FALHA, nunca lança em caso de falha de envio) |
+| `DispararReguaAtrasoUseCase` | `src/application/mensagem/disparar-regua-atraso-use-case.ts` | MSG-02/03/04 — cron diário (ainda não agendado): lista cobranças `PENDENTE`/`ATRASADO`, calcula dias desde o vencimento (0/+1/+3), dispara VENCIMENTO ou ATRASO, deduplicando por `MensagemEnviadaRepository.existeParaCobrancaETipo` e nunca interrompendo a fila em caso de falha (MSG-R-04, MSG-R-06) |
 
-Demais módulos (`mensagens`, `notificacoes-email`, `dashboard`): ver `api/specs/<módulo>/tasks.md` para a lista rastreável por ID. Ainda não iniciados.
+Demais módulos (`notificacoes-email`, `dashboard`): ver `api/specs/<módulo>/tasks.md` para a lista rastreável por ID. Ainda não iniciados.
 
 ### 4.3 Rotas HTTP
 
@@ -141,7 +143,8 @@ Demais módulos (`mensagens`, `notificacoes-email`, `dashboard`): ver `api/specs
 | Job | Trigger | Descrição | Status |
 |-----|---------|-----------|--------|
 | Geração de cobrança | cron diário (previsto) | `GerarCobrancaUseCase` já existe e é testável; falta apenas o wrapper BullMQ que chama `.executar(new Date())` num cron diário | Use case pronto, job BullMQ **não implementado** |
-| Disparo de lembretes | após geração de cobrança / cron diário | Envia mensagens via Evolution API (lembrete, vencimento, atraso D+1/D+3) | Não iniciado (módulo `mensagens`) |
+| Disparo de lembrete inicial | após geração de cobrança | `DispararLembreteInicialUseCase` já existe e é testável (envia LEMBRETE via `CanalMensagem`); falta só a chamada a partir de `GerarCobrancaUseCase`/job de geração | Use case pronto, wiring **não implementado** |
+| Disparo da régua de atraso | cron diário (previsto) | `DispararReguaAtrasoUseCase` já existe e é testável (VENCIMENTO/ATRASO em D0/D+1/D+3); falta apenas o wrapper BullMQ que chama `.executar(new Date())` num cron diário | Use case pronto, job BullMQ **não implementado** |
 
 ---
 
@@ -154,7 +157,7 @@ Demais módulos (`mensagens`, `notificacoes-email`, `dashboard`): ver `api/specs
 | 1 | Service Object / Use Case | Lógica de negócio, um verbo + substantivo | `CriarClienteUseCase`, `InativarClienteUseCase` |
 | 2 | Job Pattern | Tarefas assíncronas (BullMQ) | job de geração de cobrança, job de disparo de lembrete |
 | 3 | Repository Pattern | Acesso a dados via Prisma, interface no domínio | `ClienteRepository` |
-| 4 | Porta/Adapter | Integração externa (gateway de pagamento, WhatsApp) | porta "o que um gateway de pagamento faz" ⇄ `AsaasGateway`; `NotificadorConfirmacao` ⇄ `LogNotificadorConfirmacao` (stub até o módulo `mensagens` existir) |
+| 4 | Porta/Adapter | Integração externa (gateway de pagamento, WhatsApp) | porta "o que um gateway de pagamento faz" ⇄ `AsaasGateway`; `NotificadorConfirmacao` ⇄ `LogNotificadorConfirmacao` (stub até o disparo real ser ligado); `CanalMensagem` ⇄ `EvolutionCanalMensagem` (`src/infra/gateways/evolution-canal-mensagem.ts`, HTTP direto via fetch contra a Evolution API, sem SDK de terceiros) |
 | 5 | Erro de domínio | Erros de regra de negócio | `DomainError` (base, `src/shared/errors/domain-error.ts`) → subclasses como `ClienteInvalidoError` |
 | 6 | _[Adicionar conforme o projeto cresce]_ | — | — |
 
@@ -278,6 +281,9 @@ npx tsc -p tsconfig.test.json --noEmit
 | 2026-07-08 | `ConfirmarPagamentoUseCase` trata idempotência (PAG-R-04) verificando o status da cobrança *antes* de chamar `marcarComoPaga`, em vez de tornar a entidade tolerante a chamadas repetidas | Decisão explícita do usuário: mantém `Cobranca.marcarComoPaga` lançando erro para transição inválida (contrato já testado na Sprint 2), e deixa a decisão de "quando nem tentar" no use case, que é quem conhece o contexto de webhook idempotente |
 | 2026-07-08 | Webhook simula o formato real do Asaas (`{ event, payment: { id } }`, token no header `asaas-access-token`) em vez de um payload simplificado provisório | Decisão explícita do usuário: reduz o retrabalho de reformatar o parsing quando a integração real com o Asaas (ainda não implementada, só o `AsaasGateway` de cobrança falta) entrar em produção |
 | 2026-07-08 | `gatewayChargeId` de `Cobranca` ganhou índice único (`@unique`) no schema | Necessário para `buscarPorGatewayChargeId` (usado pelo webhook) ser uma busca correta e eficiente; aplicado via migration manual (ver seção 6.5) já que as tabelas de cobrança estavam vazias em dev/test |
+| 2026-07-08 | Módulo `mensagens` (MSG) dividido em dois use cases (`DispararLembreteInicialUseCase` para MSG-01, `DispararReguaAtrasoUseCase` para MSG-02/03/04) em vez de um único use case genérico | Decisão explícita do usuário (opção escolhida entre as alternativas apresentadas): mantém explícito qual é o gatilho de cada mensagem — o lembrete inicial nasce junto da geração da cobrança, a régua de atraso roda em cron diário separado — em vez de um único use case tentando cobrir os dois gatilhos |
+| 2026-07-08 | Deduplicação de envio (evitar reenviar o mesmo tipo de mensagem pra mesma cobrança, ex: cron rodando 2x) feita consultando `MensagemEnviadaRepository.existeParaCobrancaETipo` em vez de um campo de controle novo na entidade `Cobranca` | Decisão explícita do usuário: reaproveita a tabela `MensagemEnviada` que MSG-R-05 já exige como fonte de verdade, sem duplicar esse estado em `Cobranca` (entidade de COB, módulo já estável) |
+| 2026-07-08 | Campo `statusEnvio` de `MensagemEnviada` guarda só o resultado (`"ENVIADO"` \| `"FALHA"`), não o texto bruto do erro | Decisão explícita do usuário: mantém a tabela simples para MSG-R-05/06; debug de erro de envio fica pro log estruturado (Pino), não pra coluna do banco |
 
 ---
 
@@ -296,6 +302,22 @@ npx tsc -p tsconfig.test.json --noEmit
 ## 10. Linha do Tempo do Projeto (0% → 100%)
 
 > Registro cronológico de marcos. Cada entrada nova vai **no topo** da lista (mais recente primeiro), com data e um resumo do que mudou de estado.
+
+### 2026-07-08 — Sprint 3 (parcial): módulo Mensagens (MSG) via TDD
+- Segundo módulo da Sprint 3, na ordem PAG → MSG → EMAIL. Fecha MSG-01 a MSG-04 (`api/specs/mensagens/tasks.md`); MSG-05 parcial (log via try/catch nos use cases, painel de erros fica pro módulo `dashboard`, não iniciado):
+  - `src/domain/mensagem/mensagem-enviada.ts` — entidade `MensagemEnviada` (`criar()`/`restaurar()`), campos `cobrancaId`, `tipo` (LEMBRETE/VENCIMENTO/ATRASO/CONFIRMACAO), `statusEnvio` (ENVIADO/FALHA), `enviadoEm`
+  - `src/domain/mensagem/mensagem-invalida-error.ts` — erro de domínio
+  - `src/domain/mensagem/mensagem-enviada-repository.ts` — porta (`salvar`, `existeParaCobrancaETipo`, usada pra deduplicação)
+  - `src/domain/mensagem/canal-mensagem.ts` — porta `CanalMensagem` (`enviarMensagem`), sem qualquer referência a SDK/HTTP da Evolution API
+  - `src/domain/mensagem/template-mensagem.ts` — `montarTextoMensagem`, helper puro que monta o texto de LEMBRETE/VENCIMENTO/ATRASO com nome, valor, vencimento e link de pagamento (CONFIRMACAO fora de escopo deste helper, é do módulo `pagamentos`)
+  - `src/domain/cobranca/cobranca-repository.ts` ganhou `listarPendentesOuAtrasadas` (fake + `PrismaCobrancaRepository`), necessário pra régua iterar só cobranças ainda não pagas/canceladas
+  - `src/application/mensagem/disparar-lembrete-inicial-use-case.ts` — `DispararLembreteInicialUseCase` (MSG-01): dado uma `Cobranca`, busca o cliente e o `telefonePrincipal`, monta e envia LEMBRETE, registra `MensagemEnviada` com ENVIADO ou FALHA sem nunca lançar em caso de falha de envio (MSG-R-06)
+  - `src/application/mensagem/disparar-regua-atraso-use-case.ts` — `DispararReguaAtrasoUseCase` (MSG-02/03/04): cron diário (ainda não agendado), lista cobranças PENDENTE/ATRASADO, calcula dias desde o vencimento (marcos fixos 0/+1/+3 — MSG-R-02/R-03), dispara VENCIMENTO ou ATRASO deduplicando por `MensagemEnviadaRepository.existeParaCobrancaETipo`, marca a cobrança como ATRASADA na transição D+1, nunca dispara para `PAGO`/`CANCELADO` (MSG-R-04) e isola falha de envio por cobrança sem interromper a fila (MSG-R-06)
+  - `src/infra/database/prisma-mensagem-enviada-repository.ts` — implementação Prisma da porta `MensagemEnviadaRepository`
+  - `src/infra/gateways/evolution-canal-mensagem.ts` — `EvolutionCanalMensagem`, adapter HTTP direto (fetch, sem SDK) contra a Evolution API (`POST /message/sendText/:instance`), usando as env vars `EVOLUTION_API_URL`/`EVOLUTION_API_KEY`/`EVOLUTION_INSTANCE` já existentes desde o esqueleto inicial
+- Testes: 22 unitários (5 de entidade + 4 de template + 4 de `DispararLembreteInicialUseCase` + 9 de `DispararReguaAtrasoUseCase`, com fakes em memória) + 3 de integração (`tests/integration/prisma-mensagem-enviada-repository.test.ts`, banco Postgres real, cobrindo `PrismaMensagemEnviadaRepository` e `PrismaCobrancaRepository.listarPendentesOuAtrasadas`) — suíte completa do projeto em 95 testes, todos verdes.
+- Lint e typecheck (ambos tsconfigs) limpos; `npx prisma migrate status` sem pendências — nenhuma migration nova necessária, a tabela `mensagens_enviadas` já existia desde o esqueleto inicial (Sprint 0) com o shape correto.
+- **Não feito ainda:** job BullMQ que chama `DispararReguaAtrasoUseCase.executar()` num cron diário (mesma situação do job de `GerarCobrancaUseCase`, ver seção 4.4); wiring de `DispararLembreteInicialUseCase` a partir de `GerarCobrancaUseCase`/job de geração (use case pronto e testado isoladamente); painel de erros no `dashboard` (MSG-05, módulo não iniciado); disparo real de confirmação de pagamento (`ConfirmarPagamentoUseCase` do módulo PAG ainda usa `LogNotificadorConfirmacao`, trocar por um `NotificadorConfirmacao` que use `CanalMensagem`/`montarTextoMensagem` fica para depois). Módulos `notificacoes-email` e `dashboard` seguem não iniciados; ordem da Sprint 3 (PAG → MSG → EMAIL) segue, próximo é EMAIL.
 
 ### 2026-07-08 — Sprint 3 (parcial): módulo Pagamentos (PAG) via TDD
 - Primeiro módulo da Sprint 3 (`api/sprints/sprint-03-mensagens-email-pagamentos.md`), na ordem sugerida PAG → MSG → EMAIL. Fecha PAG-01 a PAG-03 e a parte de toggle de PAG-04 (`api/specs/pagamentos/tasks.md`):
