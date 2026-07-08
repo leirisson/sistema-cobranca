@@ -116,9 +116,15 @@ sistema-cobranca/
 | `Cobranca` | `cobrancas` | Cobrança gerada para um cliente: valor, vencimento, status (PENDENTE/PAGO/ATRASADO/CANCELADO), dados do gateway |
 | `MensagemEnviada` | `mensagens_enviadas` | Registro de mensagem enviada por cobrança (LEMBRETE/VENCIMENTO/ATRASO/CONFIRMACAO) |
 
-### 4.2 Services / Use Cases previstos
+### 4.2 Services / Use Cases
 
-Ver `api/specs/<módulo>/tasks.md` para a lista rastreável por ID (ex.: `CAD-01` a `CAD-05` no módulo clientes). Nenhum use case implementado ainda além do esqueleto.
+| Use Case | Localização | Responsabilidade |
+|---|---|---|
+| `CriarClienteUseCase` | `src/application/cliente/criar-cliente-use-case.ts` | CAD-01 — valida e persiste novo cliente (status inicial ATIVO) |
+| `InativarClienteUseCase` | `src/application/cliente/inativar-cliente-use-case.ts` | CAD-03 — inativa cliente existente (mantém histórico) |
+| `EditarClienteUseCase` | `src/application/cliente/editar-cliente-use-case.ts` | CAD-04 — edita dados de cliente existente reaplicando invariantes |
+
+Demais módulos (`cobrancas`, `mensagens`, etc.): ver `api/specs/<módulo>/tasks.md` para a lista rastreável por ID. Ainda não iniciados.
 
 ### 4.3 Jobs Assíncronos (previstos, ainda não implementados)
 
@@ -162,7 +168,9 @@ _Nenhuma integração implementada ainda (Asaas e Evolution API entram nos módu
 
 ### 6.3 Banco de Dados
 
-_Nenhum obstáculo registrado ainda — schema inicial criado mas sem migration aplicada (depende de Postgres via Docker rodando)._
+- **Problema:** `docker-compose.yml` sem `name:` no topo usa o nome da pasta pai (`api`) como nome do projeto Compose. Outro projeto na máquina (`rh_inteligente\Convoca\api`) também é uma pasta `api` sem `name:` explícito — os dois colidiam no mesmo nome de projeto Compose (`api`) e na mesma rede (`api_default`). Rodar `docker compose up -d` aqui **recriou o container Postgres do outro projeto** (`convoca_postgres`) e derrubou o Evolution API dele (`convoca_evolution`), mesmo sem qualquer relação de código entre os dois repositórios.
+  **Solução:** `docker-compose.yml` agora declara `name: cobracerta` no topo, isolando o projeto Compose definitivamente por nome (não mais por pasta). Portas também migradas para evitar conflito com outros serviços já em uso na máquina: Postgres `5433:5432` (era `5432:5432`), Redis `6380:6379` (era `6379:6379`). `DATABASE_URL`/`REDIS_PORT` em `.env.example` e `.env.test` atualizados de acordo.
+  **Regra geral:** todo `docker-compose.yml` novo neste ambiente (múltiplos projetos na mesma máquina) **deve** declarar `name:` explícito — nunca confiar no nome de pasta implícito.
 
 ### 6.4 Outros
 
@@ -202,7 +210,7 @@ Após qualquer nova feature ou bugfix, validar:
 
 # Ambiente
 cp .env.example .env
-docker compose up -d          # Postgres 16 + Redis 7
+docker compose up -d          # Postgres 16 (porta 5433) + Redis 7 (porta 6380), projeto Compose "cobracerta" isolado
 
 # Desenvolvimento
 npm install
@@ -231,6 +239,8 @@ npx tsc -p tsconfig.test.json --noEmit
 | 2026-07-08 | Postgres + Redis via Docker Compose em dev, desde o início | Regra geral do projeto (`api/specs/_geral/rules.md`): paridade com produção (Easypanel) e setup local sem instalação manual de serviços |
 | 2026-07-08 | Configuração inicial entregue como esqueleto puro, sem regra de negócio | Decisão explícita do usuário: primeiro validar stack/tooling (Fastify, Prisma, Vitest, ESLint, Docker) funcionando ponta a ponta, módulo `clientes` (CAD) fica para a próxima etapa |
 | 2026-07-08 | `.gitignore` da raiz reduzido para só `.claude` | As linhas `specs`, `mvp-v1/2/3`, `claude.md` estavam ignorando documentação real do projeto, aparentemente por engano (nomes genéricos demais para um ignore global) |
+| 2026-07-08 | `docker-compose.yml` declara `name: cobracerta` e usa portas 5433 (Postgres)/6380 (Redis) em vez das portas padrão | Nome de projeto Compose implícito (nome da pasta `api`) colidiu com outro projeto na mesma máquina (`rh_inteligente\Convoca\api`, também pasta `api`), causando recriação indevida do Postgres do outro projeto. Ver seção 6.3 |
+| 2026-07-08 | Módulo `clientes` (CAD) implementado com entidade rica (`Cliente.criar`/`restaurar`, validação via Zod interna) em vez de validação só na borda HTTP | Regra geral do projeto (`api/specs/_geral/rules.md` §7): entidades protegem suas próprias invariantes, independente de quem chama (use case, teste, futura importação em lote) |
 
 ---
 
@@ -250,6 +260,19 @@ npx tsc -p tsconfig.test.json --noEmit
 
 > Registro cronológico de marcos. Cada entrada nova vai **no topo** da lista (mais recente primeiro), com data e um resumo do que mudou de estado.
 
+### 2026-07-08 — Sprint 1: módulo Clientes (CAD) completo — ~15%
+- Implementado o CRUD de cliente ponta a ponta em DDD, fechando todas as tasks CAD-01 a CAD-05 (`api/specs/clientes/tasks.md`, `api/sprints/sprint-01-clientes.md`):
+  - `src/domain/cliente/cliente.ts` — entidade `Cliente` com `criar()` (status inicial ATIVO) e `restaurar()` (hidratação sem reaplicar defaults), validação de invariantes via Zod interno (nome não vazio, telefone E.164, dia de vencimento 1–28, valor de cobrança positivo), métodos `inativar()`, `reativar()`, `editar()`
+  - `src/domain/cliente/cliente-invalido-error.ts` e `cliente-nao-encontrado-error.ts` — erros de domínio (subclasses de `DomainError`)
+  - `src/domain/cliente/cliente-repository.ts` — porta (`salvar`, `buscarPorId`, `buscarPorNome`)
+  - `src/application/cliente/` — `CriarClienteUseCase`, `InativarClienteUseCase`, `EditarClienteUseCase`
+  - `src/infra/database/prisma-cliente-repository.ts` — implementação Prisma da porta, incluindo `buscarPorNome` (CAD-05, `contains` + `mode: insensitive`) e `salvar` via `upsert`
+  - Migration `20260708171616_init` aplicada nos bancos `cobracerta` (dev) e `cobracerta_test` (test)
+- Testes: 19 unitários (domínio + application, com `FakeClienteRepository` em memória em `tests/unit/fakes/`) + 4 de integração (`tests/integration/prisma-cliente-repository.test.ts`, banco Postgres real) — suíte completa em 24 testes, todos verdes.
+- Lint e typecheck (ambos tsconfigs) limpos; `npx prisma migrate status` sem pendências.
+- **Incidente de infra resolvido durante a sprint:** ver seção 6.3 e ADR — `docker compose up` inicial colidiu com outro projeto (`Convoca`) por nome de projeto Compose implícito repetido; corrigido com `name: cobracerta` + portas dedicadas (5433/6380) antes de aplicar qualquer migration.
+- **Não feito ainda:** rotas HTTP para o módulo clientes (a spec/sprint não pediu endpoints, só o núcleo DDD); demais módulos (`cobrancas`, `mensagens`, `notificacoes-email`, `pagamentos`, `dashboard`) seguem não iniciados. Próxima sprint natural: Sprint 2 — Cobranças (`api/sprints/sprint-02-cobrancas.md`), que depende de `Cliente` já existir (agora existe).
+
 ### 2026-07-08 — Configuração inicial da API (esqueleto) — ~5%
 - Repositório já continha specs completas do MVP v1/v2/v3 e specs por módulo (`clientes`, `cobrancas`, `mensagens`, `notificacoes-email`, `pagamentos`, `dashboard`), mas nenhum código.
 - Criada a estrutura DDD em `api/src` (`domain/`, `application/`, `infra/`, `shared/`) e `api/tests` (`unit/`, `integration/`), vazias exceto pelos primeiros arquivos técnicos.
@@ -267,3 +290,12 @@ npx tsc -p tsconfig.test.json --noEmit
 - Corrigido `.gitignore` da raiz, que ignorava `api/specs/**`, `api/mvp-v*/**` e `claude.md` por acidente.
 - **Não feito ainda:** nenhum use case, entidade de domínio, repositório real, integração com Asaas/Evolution API, migration aplicada em banco real, nem o dashboard Next.js. Próximo passo natural: módulo `clientes` (CAD-01 a CAD-05, ver `api/specs/clientes/tasks.md`).
 
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
