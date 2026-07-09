@@ -100,3 +100,14 @@ export interface CobrancaManualCriada {
 export async function criarCobrancaManual(input: CriarCobrancaManualInput): Promise<CobrancaManualCriada> {
   return apiFetch<CobrancaManualCriada>("/cobrancas", { method: "POST", body: input });
 }
+
+export async function cancelarCobranca(id: string): Promise<CobrancaDashboardDetalhe> {
+  return apiFetch<CobrancaDashboardDetalhe>(`/dashboard/cobrancas/${id}/cancelar`, { method: "PATCH", body: {} });
+}
+
+export async function reenviarMensagem(cobrancaId: string, mensagemId: string): Promise<CobrancaDashboardDetalhe> {
+  return apiFetch<CobrancaDashboardDetalhe>(
+    `/dashboard/cobrancas/${cobrancaId}/mensagens/${mensagemId}/reenviar`,
+    { method: "POST", body: {} },
+  );
+}

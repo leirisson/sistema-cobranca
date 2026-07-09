@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 
 import { buildApp } from "../../src/infra/http/app.js";
@@ -299,5 +299,157 @@ describe("GET /dashboard/cobrancas/:id", () => {
     expect(response.statusCode).toBe(200);
     expect(body.origem).toBe("AVULSA");
     expect(body.descricao).toBe("Serviço extra - troca de peça");
+  });
+});
+
+describe("POST /dashboard/cobrancas/:id/mensagens/:mensagemId/reenviar", () => {
+  let app: FastifyInstance;
+  const clienteRepository = new PrismaClienteRepository(prisma);
+  const cobrancaRepository = new PrismaCobrancaRepository(prisma);
+  const mensagemEnviadaRepository = new PrismaMensagemEnviadaRepository(prisma);
+  const geradorToken = new JwtGeradorToken({ secret: env.JWT_SECRET, expiresIn: env.JWT_EXPIRES_IN });
+  const token = geradorToken.gerar({ sub: "usuario-teste", email: "dono@cobracerta.com" });
+  const authHeader = { authorization: `Bearer ${token}` };
+  const fetchOriginal = global.fetch;
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    app = buildApp();
+    await app.ready();
+  });
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  afterEach(async () => {
+    vi.unstubAllGlobals();
+    global.fetch = fetchOriginal;
+    await prisma.mensagemEnviada.deleteMany();
+    await prisma.cobranca.deleteMany();
+    await prisma.telefoneCliente.deleteMany();
+    await prisma.cliente.deleteMany();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await prisma.$disconnect();
+  });
+
+  async function criarClienteCobrancaEMensagemFalha(status: "PENDENTE" | "PAGO" | "CANCELADO" = "PENDENTE") {
+    const cliente = Cliente.criar({
+      nome: "Maria Silva",
+      documento: "12345678900",
+      telefones: [{ numero: "+5511999998888", principal: true }],
+      valorCobranca: 150,
+      diaVencimento: 10,
+    });
+    await clienteRepository.salvar(cliente);
+
+    const cobranca = Cobranca.criar({
+      clienteId: cliente.id,
+      valor: 150,
+      vencimento: new Date("2026-08-10"),
+      gatewayChargeId: `asaas_${cliente.id}`,
+      linkPagamento: `https://sandbox.asaas.com/i/asaas_${cliente.id}`,
+    });
+
+    if (status === "PAGO") {
+      cobranca.marcarComoPaga(new Date());
+    } else if (status === "CANCELADO") {
+      cobranca.cancelar();
+    }
+
+    await cobrancaRepository.salvar(cobranca);
+
+    const mensagem = MensagemEnviada.criar({
+      cobrancaId: cobranca.id,
+      tipo: "LEMBRETE",
+      statusEnvio: "FALHA",
+      canal: "whatsapp",
+    });
+    await mensagemEnviadaRepository.salvar(mensagem);
+
+    return { cobranca, mensagem };
+  }
+
+  it("rejeita requisição sem token com 401", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/dashboard/cobrancas/qualquer-id/mensagens/qualquer-id/reenviar",
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("reenvia mensagem FALHA e registra novo histórico (REENVIO-R-01)", async () => {
+    const { cobranca, mensagem } = await criarClienteCobrancaEMensagemFalha();
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 200 }));
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/dashboard/cobrancas/${cobranca.id}/mensagens/${mensagem.id}/reenviar`,
+      headers: authHeader,
+    });
+    const body = response.json();
+
+    expect(response.statusCode).toBe(200);
+    expect(body.mensagens).toHaveLength(2);
+    expect(body.mensagens.filter((m: { statusEnvio: string }) => m.statusEnvio === "ENVIADO")).toHaveLength(1);
+    expect(body.mensagens.filter((m: { statusEnvio: string }) => m.statusEnvio === "FALHA")).toHaveLength(1);
+  });
+
+  it("retorna 404 quando a mensagem não existe", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/dashboard/cobrancas/qualquer-id/mensagens/inexistente/reenviar",
+      headers: authHeader,
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("retorna 400 ao reenviar mensagem de cobrança PAGO (REENVIO-R-04)", async () => {
+    const { cobranca, mensagem } = await criarClienteCobrancaEMensagemFalha("PAGO");
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/dashboard/cobrancas/${cobranca.id}/mensagens/${mensagem.id}/reenviar`,
+      headers: authHeader,
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it("retorna 400 ao reenviar mensagem de cobrança CANCELADO (REENVIO-R-04)", async () => {
+    const { cobranca, mensagem } = await criarClienteCobrancaEMensagemFalha("CANCELADO");
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/dashboard/cobrancas/${cobranca.id}/mensagens/${mensagem.id}/reenviar`,
+      headers: authHeader,
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it("retorna 400 ao reenviar mensagem que não está com statusEnvio FALHA", async () => {
+    const { cobranca, mensagem: mensagemFalha } = await criarClienteCobrancaEMensagemFalha();
+    const mensagemEnviada = MensagemEnviada.criar({
+      cobrancaId: cobranca.id,
+      tipo: "LEMBRETE",
+      statusEnvio: "ENVIADO",
+      canal: "whatsapp",
+    });
+    await mensagemEnviadaRepository.salvar(mensagemEnviada);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/dashboard/cobrancas/${cobranca.id}/mensagens/${mensagemEnviada.id}/reenviar`,
+      headers: authHeader,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(mensagemFalha.statusEnvio).toBe("FALHA");
   });
 });

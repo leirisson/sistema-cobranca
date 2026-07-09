@@ -6,7 +6,9 @@ import type {
 
 export class FakeGatewayPagamento implements GatewayPagamento {
   chamadas: CriarCobrancaGatewayInput[] = [];
+  cancelamentos: string[] = [];
   deveFalhar = false;
+  deveFalharAoCancelar = false;
 
   async criarCobranca(input: CriarCobrancaGatewayInput): Promise<CriarCobrancaGatewayOutput> {
     this.chamadas.push(input);
@@ -22,5 +24,13 @@ export class FakeGatewayPagamento implements GatewayPagamento {
       linkPagamento: `https://sandbox.asaas.com/i/${id}`,
       pixCopiaECola: `00020126...${id}`,
     };
+  }
+
+  async cancelarCobranca(gatewayChargeId: string): Promise<void> {
+    this.cancelamentos.push(gatewayChargeId);
+
+    if (this.deveFalharAoCancelar) {
+      throw new Error("Falha ao cancelar cobrança no gateway de pagamento");
+    }
   }
 }

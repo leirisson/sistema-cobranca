@@ -15,4 +15,5 @@ export interface CriarCobrancaGatewayOutput {
 
 export interface GatewayPagamento {
   criarCobranca(input: CriarCobrancaGatewayInput): Promise<CriarCobrancaGatewayOutput>;
+  cancelarCobranca(gatewayChargeId: string): Promise<void>;
 }

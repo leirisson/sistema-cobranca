@@ -35,4 +35,8 @@ export class FakeCobrancaRepository implements CobrancaRepository {
   async listarPendentesOuAtrasadas(): Promise<Cobranca[]> {
     return this.cobrancas.filter((cobranca) => cobranca.status === "PENDENTE" || cobranca.status === "ATRASADO");
   }
+
+  async existePorClienteId(clienteId: string): Promise<boolean> {
+    return this.cobrancas.some((cobranca) => cobranca.clienteId === clienteId);
+  }
 }

@@ -6,4 +6,5 @@ export interface CobrancaRepository {
   buscarPorGatewayChargeId(gatewayChargeId: string): Promise<Cobranca | null>;
   existeParaCicloVigente(clienteId: string, vencimento: Date): Promise<boolean>;
   listarPendentesOuAtrasadas(): Promise<Cobranca[]>;
+  existePorClienteId(clienteId: string): Promise<boolean>;
 }

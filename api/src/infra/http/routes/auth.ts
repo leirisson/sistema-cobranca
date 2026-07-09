@@ -19,19 +19,31 @@ export async function authRoutes(app: FastifyInstance) {
   const geradorToken = new JwtGeradorToken({ secret: env.JWT_SECRET, expiresIn: env.JWT_EXPIRES_IN });
   const useCase = new LoginUseCase(usuarioRepository, hasherSenha, geradorToken);
 
-  app.post<{ Body: LoginBody }>("/auth/login", async (request, reply) => {
-    const { email, senha } = request.body;
+  app.post<{ Body: LoginBody }>(
+    "/auth/login",
+    {
+      // SEC-01: limite mais agressivo que o geral (anti-brute-force), por IP.
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: "1 minute",
+        },
+      },
+    },
+    async (request, reply) => {
+      const { email, senha } = request.body;
 
-    try {
-      const resultado = await useCase.executar({ email, senha });
+      try {
+        const resultado = await useCase.executar({ email, senha });
 
-      return reply.status(200).send(resultado);
-    } catch (error) {
-      if (error instanceof CredenciaisInvalidasError) {
-        return reply.status(401).send({ error: "E-mail ou senha inválidos" });
+        return reply.status(200).send(resultado);
+      } catch (error) {
+        if (error instanceof CredenciaisInvalidasError) {
+          return reply.status(401).send({ error: "E-mail ou senha inválidos" });
+        }
+
+        throw error;
       }
-
-      throw error;
-    }
-  });
+    },
+  );
 }

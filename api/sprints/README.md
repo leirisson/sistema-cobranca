@@ -11,8 +11,8 @@ Divisão da implementação do MVP v1 em sprints sequenciais, seguindo a ordem d
 | [5](sprint-05-contrato-api.md) | Contrato de API | API | Sprint 4 | concluída |
 | [6](sprint-06-onboarding.md) | Onboarding / Configurações | ONB | Sprint 5 | concluída |
 | [7](sprint-07-cobranca-avulsa.md) | Cobrança Avulsa (MVP v1.3) | AVULSA | Sprint 6 (implementada fora de ordem, sem dependência real de Onboarding) | concluída |
-| [8](sprint-08-cancelamento-reenvio.md) | Cancelamento de Cobrança + Reenvio Manual de Mensagem | CANC, REENVIO | Sprint 7 | não iniciada |
-| [9](sprint-09-seguranca-lgpd.md) | Segurança Básica da API + Dado Pessoal/LGPD | SEC, LGPD | Sprint 8 | não iniciada |
+| [8](sprint-08-cancelamento-reenvio.md) | Cancelamento de Cobrança + Reenvio Manual de Mensagem | CANC, REENVIO | Sprint 7 | concluída |
+| [9](sprint-09-seguranca-lgpd.md) | Segurança Básica da API + Dado Pessoal/LGPD | SEC, LGPD | Sprint 8 | concluída |
 | [10](sprint-10-observabilidade.md) | Observabilidade Operacional | OBS | Sprint 9 | não iniciada |
 
 Sprints 5 a 10 nascem da Análise de Gaps e do MVP v1.3 documentados em

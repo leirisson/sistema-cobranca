@@ -66,3 +66,61 @@ describe("POST /auth/login", () => {
     expect(response.json().error).toBe("E-mail ou senha inválidos");
   });
 });
+
+describe("POST /auth/login — rate limit (SEC-01/SEC-R-01)", () => {
+  let app: FastifyInstance;
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    app = buildApp();
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await prisma.usuario.deleteMany();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await prisma.$disconnect();
+  });
+
+  it("bloqueia com 429 após exceder o limite de tentativas, mantendo a mensagem genérica (SEC-R-04)", async () => {
+    let ultimaResposta;
+
+    for (let tentativa = 0; tentativa < 10; tentativa++) {
+      ultimaResposta = await app.inject({
+        method: "POST",
+        url: "/auth/login",
+        payload: { email: "ataque@cobracerta.com", senha: "tentativa" },
+        remoteAddress: "10.0.0.1",
+      });
+
+      if (ultimaResposta.statusCode === 429) {
+        break;
+      }
+    }
+
+    expect(ultimaResposta!.statusCode).toBe(429);
+  });
+
+  it("não conta tentativas de um IP diferente contra o limite do outro", async () => {
+    for (let tentativa = 0; tentativa < 5; tentativa++) {
+      await app.inject({
+        method: "POST",
+        url: "/auth/login",
+        payload: { email: "outro@cobracerta.com", senha: "tentativa" },
+        remoteAddress: "10.0.0.2",
+      });
+    }
+
+    const resposta = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: { email: "outro@cobracerta.com", senha: "tentativa" },
+      remoteAddress: "10.0.0.3",
+    });
+
+    expect(resposta.statusCode).not.toBe(429);
+  });
+});

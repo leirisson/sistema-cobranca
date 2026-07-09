@@ -1,3 +1,5 @@
+import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
 import Fastify from "fastify";
 
 import { env } from "../../shared/config/env.js";
@@ -18,6 +20,17 @@ export function buildApp() {
           ? { target: "pino-pretty" }
           : undefined,
     },
+  });
+
+  app.register(cors, {
+    origin: env.CORS_ALLOWED_ORIGINS.split(",").map((origem) => origem.trim()),
+  });
+
+  // Limite geral (SEC-03): throughput normal de uso, não é anti-brute-force.
+  app.register(rateLimit, {
+    global: true,
+    max: 100,
+    timeWindow: "1 minute",
   });
 
   app.register(healthRoutes);

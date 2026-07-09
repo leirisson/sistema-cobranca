@@ -98,6 +98,13 @@ export class PrismaClienteRepository implements ClienteRepository {
     return registros.map((registro) => this.paraEntidade(registro));
   }
 
+  async remover(id: string): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.telefoneCliente.deleteMany({ where: { clienteId: id } }),
+      this.prisma.cliente.delete({ where: { id } }),
+    ]);
+  }
+
   private paraEntidade(registro: ClienteComTelefones): Cliente {
     const temEndereco = registro.enderecoRua !== null && registro.enderecoCidade !== null && registro.enderecoUf !== null && registro.enderecoCep !== null;
 

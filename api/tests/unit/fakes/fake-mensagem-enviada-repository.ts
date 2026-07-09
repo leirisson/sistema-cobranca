@@ -11,4 +11,8 @@ export class FakeMensagemEnviadaRepository implements MensagemEnviadaRepository 
   async existeParaCobrancaETipo(cobrancaId: string, tipo: TipoMensagem): Promise<boolean> {
     return this.mensagens.some((mensagem) => mensagem.cobrancaId === cobrancaId && mensagem.tipo === tipo);
   }
+
+  async buscarPorId(id: string): Promise<MensagemEnviada | null> {
+    return this.mensagens.find((mensagem) => mensagem.id === id) ?? null;
+  }
 }

@@ -31,4 +31,12 @@ export class FakeClienteRepository implements ClienteRepository {
   async listarTodos(): Promise<Cliente[]> {
     return [...this.clientes];
   }
+
+  async remover(id: string): Promise<void> {
+    const indice = this.clientes.findIndex((c) => c.id === id);
+
+    if (indice >= 0) {
+      this.clientes.splice(indice, 1);
+    }
+  }
 }

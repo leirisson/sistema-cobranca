@@ -224,4 +224,68 @@ describe("Rotas /clientes", () => {
 
     expect(response.statusCode).toBe(400);
   });
+
+  it("rejeita DELETE sem token com 401 (AUTH-04)", async () => {
+    const response = await app.inject({ method: "DELETE", url: "/clientes/qualquer-id" });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("remove definitivamente cliente sem cobrança associada (LGPD-01)", async () => {
+    const cliente = await criarCliente("Maria Silva");
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/clientes/${cliente.id}`,
+      headers: authHeader,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().resultado).toBe("REMOVIDO");
+
+    const persistido = await prisma.cliente.findUnique({ where: { id: cliente.id } });
+    expect(persistido).toBeNull();
+  });
+
+  it("anonimiza (não remove) cliente com cobrança associada (LGPD-R-01)", async () => {
+    const cliente = await criarCliente("Maria Silva");
+    await prisma.cobranca.create({
+      data: {
+        clienteId: cliente.id,
+        valor: 150,
+        vencimento: new Date("2026-08-10"),
+        status: "PENDENTE",
+        gatewayChargeId: `asaas_${cliente.id}`,
+        linkPagamento: `https://sandbox.asaas.com/i/asaas_${cliente.id}`,
+      },
+    });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/clientes/${cliente.id}`,
+      headers: authHeader,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().resultado).toBe("ANONIMIZADO");
+
+    const persistido = await prisma.cliente.findUnique({ where: { id: cliente.id } });
+    expect(persistido).not.toBeNull();
+    expect(persistido!.nome).toBe("Cliente removido");
+    expect(persistido!.documento).toBe("00000000000");
+    expect(persistido!.email).toBeNull();
+
+    const cobrancaPersistida = await prisma.cobranca.findFirst({ where: { clienteId: cliente.id } });
+    expect(cobrancaPersistida).not.toBeNull();
+  });
+
+  it("retorna 404 ao excluir cliente inexistente", async () => {
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/clientes/id-inexistente",
+      headers: authHeader,
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
 });

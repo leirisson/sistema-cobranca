@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { BotaoExcluirCliente } from "@/components/botao-excluir-cliente";
 import { FormularioCliente } from "@/components/formulario-cliente";
 import { buscarCliente } from "@/lib/api/clientes";
 import { editarClienteAction, type ClienteFormState } from "@/lib/cliente/actions";
@@ -43,6 +44,8 @@ export default async function EditarClientePage({ params }: EditarClientePagePro
       </div>
 
       <FormularioCliente clienteInicial={cliente} action={editarComId} />
+
+      <BotaoExcluirCliente id={id} />
     </main>
   );
 }

@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { ApiError } from "../api/client";
-import { criarCobrancaManual } from "../api/cobrancas";
+import {
+  cancelarCobranca,
+  criarCobrancaManual,
+  reenviarMensagem,
+  type CobrancaDashboardDetalhe,
+} from "../api/cobrancas";
 import { cobrancaManualSchema } from "./schema";
 
 export interface CobrancaManualFormState {
@@ -41,17 +46,43 @@ export async function criarCobrancaManualAction(
   try {
     await criarCobrancaManual(resultado.data);
   } catch (error) {
-    return { error: mensagemDeErro(error) };
+    return { error: mensagemDeErro(error, "Não foi possível criar a cobrança. Tente novamente em instantes.") };
   }
 
   revalidatePath("/clientes");
   redirect("/clientes?sucesso=cobranca-criada");
 }
 
-function mensagemDeErro(error: unknown): string {
+export async function cancelarCobrancaAction(id: string): Promise<CobrancaDashboardDetalhe> {
+  try {
+    const detalhe = await cancelarCobranca(id);
+    revalidatePath(`/dashboard/cobrancas/${id}`);
+    revalidatePath("/dashboard");
+
+    return detalhe;
+  } catch (error) {
+    throw new Error(mensagemDeErro(error, "Não foi possível cancelar a cobrança. Tente novamente em instantes."));
+  }
+}
+
+export async function reenviarMensagemAction(
+  cobrancaId: string,
+  mensagemId: string,
+): Promise<CobrancaDashboardDetalhe> {
+  try {
+    const detalhe = await reenviarMensagem(cobrancaId, mensagemId);
+    revalidatePath(`/dashboard/cobrancas/${cobrancaId}`);
+
+    return detalhe;
+  } catch (error) {
+    throw new Error(mensagemDeErro(error, "Não foi possível reenviar a mensagem. Tente novamente em instantes."));
+  }
+}
+
+function mensagemDeErro(error: unknown, padrao: string): string {
   if (error instanceof ApiError) {
     return error.message;
   }
 
-  return "Não foi possível criar a cobrança. Tente novamente em instantes.";
+  return padrao;
 }

@@ -57,6 +57,17 @@ export class AsaasGateway implements GatewayPagamento {
     };
   }
 
+  async cancelarCobranca(gatewayChargeId: string): Promise<void> {
+    const response = await fetch(`${this.config.baseUrl}/payments/${gatewayChargeId}`, {
+      method: "DELETE",
+      headers: this.headers(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Asaas retornou status ${response.status} ao cancelar cobrança`);
+    }
+  }
+
   private async buscarPixCopiaECola(paymentId: string): Promise<string | null> {
     try {
       const response = await fetch(`${this.config.baseUrl}/payments/${paymentId}/pixQrCode`, {

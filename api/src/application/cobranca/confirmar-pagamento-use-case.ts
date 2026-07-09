@@ -18,7 +18,7 @@ export class ConfirmarPagamentoUseCase {
     const cobranca = await this.cobrancaRepository.buscarPorGatewayChargeId(input.gatewayChargeId);
 
     if (!cobranca) {
-      throw new CobrancaNaoEncontradaError(input.gatewayChargeId);
+      throw CobrancaNaoEncontradaError.porGatewayChargeId(input.gatewayChargeId);
     }
 
     if (cobranca.status === "PAGO" || cobranca.status === "CANCELADO") {

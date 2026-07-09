@@ -42,7 +42,9 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
             ? "Cliente cadastrado com sucesso."
             : sucesso === "cobranca-criada"
               ? "Cobrança criada com sucesso."
-              : "Cliente atualizado com sucesso."}
+              : sucesso === "excluido"
+                ? "Cliente excluído definitivamente."
+                : "Cliente atualizado com sucesso."}
         </p>
       )}
 

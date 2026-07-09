@@ -31,7 +31,7 @@ export async function enviarMensagemMultiplosCanais(
   return resultados;
 }
 
-async function enviarPorWhatsapp(
+export async function enviarPorWhatsapp(
   canalMensagem: CanalMensagem,
   input: EnviarMensagemMultiplosCanaisInput,
 ): Promise<ResultadoEnvioPorCanal> {
@@ -43,7 +43,7 @@ async function enviarPorWhatsapp(
   }
 }
 
-async function enviarPorEmail(
+export async function enviarPorEmail(
   canalNotificacao: CanalNotificacao,
   input: EnviarMensagemMultiplosCanaisInput,
   email: string,

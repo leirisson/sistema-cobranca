@@ -89,6 +89,16 @@ export async function alternarStatusCliente(id: string, status: StatusCliente): 
   return apiFetch<ClienteDTO>(`/clientes/${id}/status`, { method: "PATCH", body: { status } });
 }
 
+export type ResultadoExclusaoCliente = "REMOVIDO" | "ANONIMIZADO";
+
+export async function excluirClienteDefinitivamente(id: string): Promise<ResultadoExclusaoCliente> {
+  const resposta = await apiFetch<{ resultado: ResultadoExclusaoCliente }>(`/clientes/${id}`, {
+    method: "DELETE",
+    body: {},
+  });
+  return resposta.resultado;
+}
+
 function isApiErrorComStatus(error: unknown, status: number): boolean {
   return (
     typeof error === "object" &&

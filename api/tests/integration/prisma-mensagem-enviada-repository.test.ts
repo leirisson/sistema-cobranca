@@ -115,4 +115,17 @@ describe("PrismaMensagemEnviadaRepository", () => {
     expect(ids).toContain(cobrancaAtrasada.id);
     expect(ids).not.toContain(cobrancaPaga.id);
   });
+
+  it("exclui cobrança CANCELADO de listarPendentesOuAtrasadas (CANC-R-03, regressão)", async () => {
+    const cobrancaPendente = await criarClienteECobrancaSalvos(new Date("2026-08-10"));
+    const cobrancaCancelada = await criarClienteECobrancaSalvos(new Date("2026-08-05"));
+    cobrancaCancelada.cancelar();
+    await cobrancaRepository.salvar(cobrancaCancelada);
+
+    const resultado = await cobrancaRepository.listarPendentesOuAtrasadas();
+    const ids = resultado.map((c) => c.id);
+
+    expect(ids).toContain(cobrancaPendente.id);
+    expect(ids).not.toContain(cobrancaCancelada.id);
+  });
 });

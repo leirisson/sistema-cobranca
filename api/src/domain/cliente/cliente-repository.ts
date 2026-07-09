@@ -6,4 +6,5 @@ export interface ClienteRepository {
   buscarPorNome(nome: string): Promise<Cliente[]>;
   listarAtivos(): Promise<Cliente[]>;
   listarTodos(): Promise<Cliente[]>;
+  remover(id: string): Promise<void>;
 }

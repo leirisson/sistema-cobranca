@@ -8,6 +8,7 @@ import {
   alternarStatusCliente,
   criarCliente,
   editarCliente,
+  excluirClienteDefinitivamente,
   type ClienteInput,
   type StatusCliente,
   type TelefoneClienteDTO,
@@ -115,6 +116,17 @@ export async function alternarStatusClienteAction(id: string, statusAtual: Statu
   const novoStatus: StatusCliente = statusAtual === "ATIVO" ? "INATIVO" : "ATIVO";
   await alternarStatusCliente(id, novoStatus);
   revalidatePath("/clientes");
+}
+
+export async function excluirClienteDefinitivamenteAction(id: string): Promise<void> {
+  try {
+    await excluirClienteDefinitivamente(id);
+  } catch (error) {
+    throw new Error(mensagemDeErro(error));
+  }
+
+  revalidatePath("/clientes");
+  redirect("/clientes?sucesso=excluido");
 }
 
 function mensagemDeErro(error: unknown): string {

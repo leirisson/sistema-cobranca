@@ -121,6 +121,27 @@ describe("AsaasGateway", () => {
     });
   });
 
+  it("cancela a cobrança via DELETE /payments/:id (CANC-01)", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { deleted: true, id: "pay_123" }));
+
+    const gateway = new AsaasGateway(CONFIG);
+    await gateway.cancelarCobranca("pay_123");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]![0]).toBe(`${CONFIG.baseUrl}/payments/pay_123`);
+    expect(fetchMock.mock.calls[0]![1]).toMatchObject({ method: "DELETE" });
+  });
+
+  it("lança erro quando o cancelamento no Asaas falha", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValueOnce(new Response("erro", { status: 400 }));
+
+    const gateway = new AsaasGateway(CONFIG);
+
+    await expect(gateway.cancelarCobranca("pay_123")).rejects.toThrow();
+  });
+
   it("envia apikey no header access_token em todas as chamadas", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock

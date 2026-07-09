@@ -16,6 +16,29 @@ Rotas **Públicas** não passam por esse hook — inclui rotas autenticadas por 
 (webhook do Asaas, autenticado pelo próprio token do gateway) e as que não fazem sentido exigir
 sessão (`/health`, `/auth/login`).
 
+## Rate limit (SEC)
+
+Todas as rotas passam por um rate limit **geral** de `100` requisições/minuto por IP
+(`@fastify/rate-limit`, registrado globalmente em `app.ts`). Ao exceder, `429`:
+
+```ts
+{ statusCode: 429, error: "Too Many Requests", message: string }
+```
+
+`POST /auth/login` tem um limite **específico e mais agressivo** por cima do geral: `5`
+tentativas/minuto por IP (SEC-01/SEC-R-01) — anti-brute-force. Ao exceder, a resposta continua
+`429` no mesmo formato acima; a mensagem de erro de credenciais inválidas (`401`) nunca é
+afetada pelo rate limit — são caminhos de código diferentes, então a garantia de mensagem
+genérica (AUTH-R-03) não muda (SEC-R-04).
+
+## CORS (SEC)
+
+Todas as rotas exigem `Origin` presente na allowlist configurada via `CORS_ALLOWED_ORIGINS`
+(`@fastify/cors`, lista separada por vírgula, ex: `http://localhost:3001`). Requisição de
+origem fora da lista é rejeitada pelo CORS antes de chegar à rota (comportamento padrão do
+browser: erro de CORS no console, sem resposta utilizável). Não se aplica ao webhook do Asaas
+(`/webhooks/asaas`), que não é chamado por um browser.
+
 ---
 
 ### `GET /health`
@@ -121,6 +144,42 @@ sessão (`/health`, `/auth/login`).
 
 ---
 
+### `PATCH /dashboard/cobrancas/:id/cancelar`
+- **Módulo:** CANC
+- **Autenticação:** Protegida (JWT)
+- **Request Params:** `id` (uuid da cobrança)
+- **Request:** nenhum body
+- **Response 200:** mesmo shape de `GET /dashboard/cobrancas/:id`, já com `status: "CANCELADO"`
+- **Efeito colateral:** tenta cancelar a cobrança no Asaas (`DELETE /payments/:id`); falha nessa
+  chamada é logada e **não** bloqueia o cancelamento local (CANC-R-04)
+- **Erros:**
+  - `400 { error: string }` — cobrança já `PAGO` ou já `CANCELADO` (transição inválida, CANC-R-02)
+  - `404 { error: string }` — `id` não corresponde a nenhuma cobrança
+  - `401` — sem token válido
+
+---
+
+### `POST /dashboard/cobrancas/:id/mensagens/:mensagemId/reenviar`
+- **Módulo:** REENVIO
+- **Autenticação:** Protegida (JWT)
+- **Request Params:** `id` (uuid da cobrança), `mensagemId` (uuid da `MensagemEnviada` original)
+- **Request Body:** `{}` (nenhum campo — `apiFetch` do frontend sempre envia `Content-Type:
+  application/json`, então o corpo precisa ser um JSON vazio explícito, não ausente)
+- **Response 200:** mesmo shape de `GET /dashboard/cobrancas/:id`, já com o novo registro de
+  `MensagemEnviada` no array `mensagens` (o registro original com `FALHA` permanece intacto,
+  REENVIO-R-01/R-02)
+- **Efeito:** reenvia pelo mesmo canal (`whatsapp` ou `email`) e com o mesmo `tipo` do registro
+  original, reconstruindo o texto pelos templates existentes; sem limite de tentativas
+  (REENVIO-R-03)
+- **Erros:**
+  - `400 { error: string }` — mensagem original não está com `statusEnvio: "FALHA"`, ou a
+    cobrança já está `PAGO`/`CANCELADO` (REENVIO-R-04)
+  - `404 { error: string }` — `mensagemId` não corresponde a nenhuma `MensagemEnviada`, ou a
+    `Cobranca` referenciada por ela não existe mais
+  - `401` — sem token válido
+
+---
+
 ### `GET /clientes`
 - **Módulo:** CAD
 - **Autenticação:** Protegida (JWT)
@@ -197,6 +256,33 @@ sessão (`/health`, `/auth/login`).
 - **Response 200:** `ClienteDTO` com o novo status
 - **Erros:**
   - `400 { error: "Status inválido" }` — `status` fora do enum
+  - `404 { error: string }` — cliente não existe
+  - `401` — sem token válido
+
+---
+
+### `DELETE /clientes/:id`
+- **Módulo:** LGPD
+- **Autenticação:** Protegida (JWT)
+- **Request Params:** `id` (uuid do cliente)
+- **Request:** nenhum body
+- **Response 200:**
+  ```ts
+  { resultado: "REMOVIDO" | "ANONIMIZADO" }
+  ```
+  `"REMOVIDO"` quando o cliente não tinha nenhuma `Cobranca` associada (registro apagado
+  fisicamente do banco, junto com seus `TelefoneCliente`). `"ANONIMIZADO"` quando havia
+  `Cobranca` associada (LGPD-R-01/R-02): os campos de PII (`nome`, `documento`, `telefones`,
+  `email`, `endereco`, `inscricaoEstadual`, `nomeContato`, `referenciaServico`) são substituídos
+  por valores placeholder (`nome: "Cliente removido"`, `documento: "00000000000"`, telefone
+  `"+10000000000"`, demais campos `null`); o registro do `Cliente` e suas `Cobranca`/
+  `MensagemEnviada` permanecem intactos para integridade contábil.
+- **Efeito colateral:** loga um evento de auditoria estruturado (Pino, `app.log.info`) com
+  `{ clienteId, resultado }` — nunca com PII (LGPD-R-03).
+- **Distinção de `PATCH /clientes/:id/status`:** esta rota é destrutiva e irreversível (não há
+  "descancelar"); inativar continua sendo o fluxo padrão do dia a dia, exclusão definitiva é
+  uma ação rara para atender pedido de exclusão do titular do dado (LGPD art. 18).
+- **Erros:**
   - `404 { error: string }` — cliente não existe
   - `401` — sem token válido
 

@@ -1,5 +1,5 @@
 # Tasks — Reenvio Manual de Mensagem (REENVIO)
 
-- [ ] REENVIO-01 — Implementar `ReenviarMensagemUseCase` (`src/application/mensagem/`): recebe o id da `MensagemEnviada` original com `FALHA`, valida que a cobrança não está `PAGO`/`CANCELADO`, reconstrói o texto pelo `tipo` original, reenvia pelo mesmo canal, persiste novo registro.
-- [ ] REENVIO-02 — Endpoint `POST /dashboard/cobrancas/:id/mensagens/:mensagemId/reenviar`. Documentar em `contrato-api/endpoints.md`.
-- [ ] REENVIO-03 (frontend) — Botão "Reenviar" ao lado de cada item `FALHA` no histórico de mensagens do detalhe da cobrança (FE-DASH), com feedback de sucesso/nova falha.
+- [x] REENVIO-01 — `ReenviarMensagemUseCase` (`src/application/mensagem/reenviar-mensagem-use-case.ts`): recebe o id da `MensagemEnviada` original (não precisa estar `FALHA` — reenviar um `ENVIADO` também é permitido, a UI só oferece o botão para `FALHA`), valida que a cobrança não está `PAGO`/`CANCELADO`, reconstrói o texto pelo `tipo` original (`CONFIRMACAO` via `template-confirmacao.ts`, demais via `template-mensagem.ts`/`template-email.ts`), reenvia pelo mesmo canal do registro original, persiste novo registro sem tocar no original.
+- [x] REENVIO-02 — Endpoint `POST /dashboard/cobrancas/:id/mensagens/:mensagemId/reenviar`, devolve o detalhe atualizado da cobrança (mesmo shape de `GET /dashboard/cobrancas/:id`). Documentado em `contrato-api/endpoints.md`.
+- [x] REENVIO-03 (frontend) — Botão "Reenviar" ao lado de cada item `FALHA` no histórico de mensagens do detalhe da cobrança (`components/detalhe-cobranca.tsx`), com estado de carregamento ("Reenviando…") e atualização do histórico ao concluir; oculto quando a cobrança está `PAGO`/`CANCELADO`.

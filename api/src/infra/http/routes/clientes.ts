@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 
 import { CriarClienteUseCase } from "../../../application/cliente/criar-cliente-use-case.js";
 import { EditarClienteUseCase } from "../../../application/cliente/editar-cliente-use-case.js";
+import { ExcluirClienteDefinitivamenteUseCase } from "../../../application/cliente/excluir-cliente-definitivamente-use-case.js";
 import { InativarClienteUseCase } from "../../../application/cliente/inativar-cliente-use-case.js";
 import { ListarClientesUseCase } from "../../../application/cliente/listar-clientes-use-case.js";
 import { ReativarClienteUseCase } from "../../../application/cliente/reativar-cliente-use-case.js";
@@ -9,6 +10,7 @@ import type { Cliente, ClienteProps, ClienteEdicao, StatusCliente } from "../../
 import { ClienteInvalidoError } from "../../../domain/cliente/cliente-invalido-error.js";
 import { ClienteNaoEncontradoError } from "../../../domain/cliente/cliente-nao-encontrado-error.js";
 import { PrismaClienteRepository } from "../../database/prisma-cliente-repository.js";
+import { PrismaCobrancaRepository } from "../../database/prisma-cobranca-repository.js";
 import { prisma } from "../../database/prisma-client.js";
 import { autenticar } from "../plugins/auth.js";
 
@@ -45,11 +47,16 @@ function paraDTO(cliente: Cliente) {
 
 export async function clientesRoutes(app: FastifyInstance) {
   const clienteRepository = new PrismaClienteRepository(prisma);
+  const cobrancaRepository = new PrismaCobrancaRepository(prisma);
   const listarClientesUseCase = new ListarClientesUseCase(clienteRepository);
   const criarClienteUseCase = new CriarClienteUseCase(clienteRepository);
   const editarClienteUseCase = new EditarClienteUseCase(clienteRepository);
   const inativarClienteUseCase = new InativarClienteUseCase(clienteRepository);
   const reativarClienteUseCase = new ReativarClienteUseCase(clienteRepository);
+  const excluirClienteDefinitivamenteUseCase = new ExcluirClienteDefinitivamenteUseCase(
+    clienteRepository,
+    cobrancaRepository,
+  );
 
   app.addHook("preHandler", autenticar);
 
@@ -127,6 +134,23 @@ export async function clientesRoutes(app: FastifyInstance) {
       const cliente = await clienteRepository.buscarPorId(request.params.id);
 
       return reply.status(200).send(paraDTO(cliente!));
+    } catch (error) {
+      if (error instanceof ClienteNaoEncontradoError) {
+        return reply.status(404).send({ error: error.message });
+      }
+
+      throw error;
+    }
+  });
+
+  app.delete<{ Params: { id: string } }>("/clientes/:id", async (request, reply) => {
+    try {
+      const resultado = await excluirClienteDefinitivamenteUseCase.executar(request.params.id);
+
+      // LGPD-R-03: log de auditoria sem PII — só id do cliente e o resultado da operação.
+      app.log.info({ clienteId: request.params.id, resultado }, "Exclusão definitiva de cliente executada");
+
+      return reply.status(200).send({ resultado });
     } catch (error) {
       if (error instanceof ClienteNaoEncontradoError) {
         return reply.status(404).send({ error: error.message });

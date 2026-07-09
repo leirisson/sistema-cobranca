@@ -3,8 +3,13 @@ import type { FastifyInstance } from "fastify";
 import { BuscarDetalheCobrancaUseCase } from "../../../application/cobranca/buscar-detalhe-cobranca-use-case.js";
 import { ListarCobrancasDashboardUseCase } from "../../../application/cobranca/listar-cobrancas-dashboard-use-case.js";
 import type { StatusCobranca } from "../../../domain/cobranca/cobranca.js";
+import { CobrancaInvalidaError } from "../../../domain/cobranca/cobranca-invalida-error.js";
+import { CobrancaNaoEncontradaError } from "../../../domain/cobranca/cobranca-nao-encontrada-error.js";
+import { MensagemInvalidaError } from "../../../domain/mensagem/mensagem-invalida-error.js";
+import { MensagemNaoEncontradaError } from "../../../domain/mensagem/mensagem-nao-encontrada-error.js";
 import { PrismaDashboardCobrancaQuery } from "../../database/prisma-dashboard-cobranca-query.js";
 import { prisma } from "../../database/prisma-client.js";
+import { criarCancelarCobrancaUseCase, criarReenviarMensagemUseCase } from "../../queue/use-cases-factory.js";
 import { autenticar } from "../plugins/auth.js";
 
 const STATUS_VALIDOS: StatusCobranca[] = ["PENDENTE", "PAGO", "ATRASADO", "CANCELADO"];
@@ -49,4 +54,47 @@ export async function dashboardRoutes(app: FastifyInstance) {
 
     return reply.status(200).send(detalhe);
   });
+
+  app.patch<{ Params: { id: string } }>("/dashboard/cobrancas/:id/cancelar", async (request, reply) => {
+    try {
+      const cancelarCobrancaUseCase = await criarCancelarCobrancaUseCase();
+      await cancelarCobrancaUseCase.executar(request.params.id);
+
+      const detalhe = await buscarDetalheUseCase.executar(request.params.id);
+      return reply.status(200).send(detalhe);
+    } catch (error) {
+      if (error instanceof CobrancaNaoEncontradaError) {
+        return reply.status(404).send({ error: error.message });
+      }
+
+      if (error instanceof CobrancaInvalidaError) {
+        return reply.status(400).send({ error: error.message });
+      }
+
+      throw error;
+    }
+  });
+
+  app.post<{ Params: { id: string; mensagemId: string } }>(
+    "/dashboard/cobrancas/:id/mensagens/:mensagemId/reenviar",
+    async (request, reply) => {
+      try {
+        const reenviarMensagemUseCase = criarReenviarMensagemUseCase();
+        await reenviarMensagemUseCase.executar(request.params.mensagemId);
+
+        const detalhe = await buscarDetalheUseCase.executar(request.params.id);
+        return reply.status(200).send(detalhe);
+      } catch (error) {
+        if (error instanceof MensagemNaoEncontradaError || error instanceof CobrancaNaoEncontradaError) {
+          return reply.status(404).send({ error: error.message });
+        }
+
+        if (error instanceof MensagemInvalidaError || error instanceof CobrancaInvalidaError) {
+          return reply.status(400).send({ error: error.message });
+        }
+
+        throw error;
+      }
+    },
+  );
 }

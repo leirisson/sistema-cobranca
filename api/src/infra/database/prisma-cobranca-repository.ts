@@ -67,6 +67,12 @@ export class PrismaCobrancaRepository implements CobrancaRepository {
     return registros.map((registro) => this.paraEntidade(registro));
   }
 
+  async existePorClienteId(clienteId: string): Promise<boolean> {
+    const registro = await this.prisma.cobranca.findFirst({ where: { clienteId } });
+
+    return registro !== null;
+  }
+
   private paraEntidade(registro: CobrancaPrisma): Cobranca {
     return Cobranca.restaurar({
       id: registro.id,

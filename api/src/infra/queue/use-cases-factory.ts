@@ -1,8 +1,10 @@
+import { CancelarCobrancaUseCase } from "../../application/cobranca/cancelar-cobranca-use-case.js";
 import { CriarCobrancaManualUseCase } from "../../application/cobranca/criar-cobranca-manual-use-case.js";
 import { GerarCobrancaUseCase } from "../../application/cobranca/gerar-cobranca-use-case.js";
 import { ResolverCredenciaisAsaasUseCase } from "../../application/configuracao/resolver-credenciais-asaas-use-case.js";
 import { DispararLembreteInicialUseCase } from "../../application/mensagem/disparar-lembrete-inicial-use-case.js";
 import { DispararReguaAtrasoUseCase } from "../../application/mensagem/disparar-regua-atraso-use-case.js";
+import { ReenviarMensagemUseCase } from "../../application/mensagem/reenviar-mensagem-use-case.js";
 import { env } from "../../shared/config/env.js";
 import { PrismaClienteRepository } from "../database/prisma-cliente-repository.js";
 import { PrismaCobrancaRepository } from "../database/prisma-cobranca-repository.js";
@@ -50,6 +52,16 @@ export async function criarCriarCobrancaManualUseCase(): Promise<CriarCobrancaMa
   return new CriarCobrancaManualUseCase(clienteRepository, cobrancaRepository, gatewayPagamento);
 }
 
+export async function criarCancelarCobrancaUseCase(): Promise<CancelarCobrancaUseCase> {
+  const cobrancaRepository = new PrismaCobrancaRepository(prisma);
+  const gatewayPagamento = new AsaasGateway({
+    baseUrl: env.ASAAS_BASE_URL,
+    apiKey: await resolverAsaasApiKey(),
+  });
+
+  return new CancelarCobrancaUseCase(cobrancaRepository, gatewayPagamento);
+}
+
 export function criarDispararLembreteInicialUseCase(): DispararLembreteInicialUseCase {
   const clienteRepository = new PrismaClienteRepository(prisma);
   const mensagemEnviadaRepository = new PrismaMensagemEnviadaRepository(prisma);
@@ -91,6 +103,32 @@ export function criarDispararReguaAtrasoUseCase(): DispararReguaAtrasoUseCase {
   });
 
   return new DispararReguaAtrasoUseCase(
+    clienteRepository,
+    cobrancaRepository,
+    mensagemEnviadaRepository,
+    canalMensagem,
+    canalNotificacao,
+    configuracaoRepository,
+  );
+}
+
+export function criarReenviarMensagemUseCase(): ReenviarMensagemUseCase {
+  const clienteRepository = new PrismaClienteRepository(prisma);
+  const cobrancaRepository = new PrismaCobrancaRepository(prisma);
+  const mensagemEnviadaRepository = new PrismaMensagemEnviadaRepository(prisma);
+  const configuracaoRepository = new PrismaConfiguracaoRepository(prisma);
+  const canalMensagem = new EvolutionCanalMensagem({
+    baseUrl: env.EVOLUTION_API_URL,
+    apiKey: env.EVOLUTION_API_KEY,
+    instance: env.EVOLUTION_INSTANCE,
+  });
+  const canalNotificacao = new NodemailerGmailNotificador({
+    usuario: env.GMAIL_USUARIO,
+    senhaApp: env.GMAIL_SENHA_APP,
+    remetente: env.GMAIL_REMETENTE,
+  });
+
+  return new ReenviarMensagemUseCase(
     clienteRepository,
     cobrancaRepository,
     mensagemEnviadaRepository,
