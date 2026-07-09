@@ -20,6 +20,7 @@ export class FakeGatewayPagamento implements GatewayPagamento {
     return {
       gatewayChargeId: id,
       linkPagamento: `https://sandbox.asaas.com/i/${id}`,
+      pixCopiaECola: `00020126...${id}`,
     };
   }
 }

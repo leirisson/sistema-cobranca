@@ -38,4 +38,16 @@ describe("montarTextoMensagem", () => {
       montarTextoMensagem("CONFIRMACAO" as unknown as "LEMBRETE", dadosBase()),
     ).toThrow();
   });
+
+  it("inclui o código PIX copia-e-cola quando informado", () => {
+    const texto = montarTextoMensagem("LEMBRETE", { ...dadosBase(), pixCopiaECola: "00020126...pix_123" });
+
+    expect(texto).toContain("00020126...pix_123");
+  });
+
+  it("não menciona PIX quando o código não é informado", () => {
+    const texto = montarTextoMensagem("LEMBRETE", dadosBase());
+
+    expect(texto).not.toContain("Pix");
+  });
 });

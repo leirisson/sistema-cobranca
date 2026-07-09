@@ -10,6 +10,7 @@ export interface CriarCobrancaGatewayInput {
 export interface CriarCobrancaGatewayOutput {
   gatewayChargeId: string;
   linkPagamento: string;
+  pixCopiaECola: string | null;
 }
 
 export interface GatewayPagamento {

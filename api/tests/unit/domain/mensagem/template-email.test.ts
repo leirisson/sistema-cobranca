@@ -38,4 +38,16 @@ describe("montarEmailMensagem", () => {
   it("rejeita template para CONFIRMACAO (fora de escopo deste helper)", () => {
     expect(() => montarEmailMensagem("CONFIRMACAO" as unknown as "LEMBRETE", dadosBase())).toThrow();
   });
+
+  it("inclui o código PIX copia-e-cola no corpo quando informado", () => {
+    const email = montarEmailMensagem("LEMBRETE", { ...dadosBase(), pixCopiaECola: "00020126...pix_123" });
+
+    expect(email.corpoHtml).toContain("00020126...pix_123");
+  });
+
+  it("não menciona PIX no corpo quando o código não é informado", () => {
+    const email = montarEmailMensagem("LEMBRETE", dadosBase());
+
+    expect(email.corpoHtml).not.toContain("Pix");
+  });
 });

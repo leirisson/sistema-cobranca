@@ -51,7 +51,7 @@ describe("MensagemNotificadorConfirmacao", () => {
     );
   });
 
-  it("envia confirmação por WhatsApp e registra MensagemEnviada tipo CONFIRMACAO (PAG-R-05)", async () => {
+  it("envia confirmação por WhatsApp e por e-mail em paralelo, registrando MensagemEnviada tipo CONFIRMACAO pra cada canal (PAG-R-05)", async () => {
     const cliente = criarCliente();
     await clienteRepository.salvar(cliente);
     const cobranca = criarCobranca(cliente.id);
@@ -60,12 +60,16 @@ describe("MensagemNotificadorConfirmacao", () => {
 
     expect(canalMensagem.chamadas).toHaveLength(1);
     expect(canalMensagem.chamadas[0]?.texto).toContain("Maria Silva");
-    expect(mensagemRepository.mensagens[0]?.tipo).toBe("CONFIRMACAO");
-    expect(mensagemRepository.mensagens[0]?.statusEnvio).toBe("ENVIADO");
-    expect(mensagemRepository.mensagens[0]?.canal).toBe("whatsapp");
+    expect(canalNotificacao.chamadas).toHaveLength(1);
+    expect(mensagemRepository.mensagens).toHaveLength(2);
+    expect(mensagemRepository.mensagens.every((m) => m.tipo === "CONFIRMACAO")).toBe(true);
+    expect(mensagemRepository.mensagens.every((m) => m.statusEnvio === "ENVIADO")).toBe(true);
+    expect(mensagemRepository.mensagens.map((m) => m.canal)).toEqual(
+      expect.arrayContaining(["whatsapp", "email"]),
+    );
   });
 
-  it("cai para e-mail quando o WhatsApp falha e o cliente tem e-mail (EMAIL-R-05)", async () => {
+  it("registra ENVIADO no e-mail mesmo quando o WhatsApp falha (EMAIL-R-05)", async () => {
     const cliente = criarCliente("maria@example.com");
     await clienteRepository.salvar(cliente);
     canalMensagem.deveFalharPara.add(cliente.telefonePrincipal!.numero);
@@ -74,7 +78,21 @@ describe("MensagemNotificadorConfirmacao", () => {
     await notificador.notificarPagamentoConfirmado(cobranca);
 
     expect(canalNotificacao.chamadas).toHaveLength(1);
-    expect(mensagemRepository.mensagens[0]?.statusEnvio).toBe("ENVIADO");
-    expect(mensagemRepository.mensagens[0]?.canal).toBe("email");
+    expect(mensagemRepository.mensagens).toHaveLength(2);
+    const porCanal = Object.fromEntries(mensagemRepository.mensagens.map((m) => [m.canal, m.statusEnvio]));
+    expect(porCanal.whatsapp).toBe("FALHA");
+    expect(porCanal.email).toBe("ENVIADO");
+  });
+
+  it("não tenta enviar e-mail quando o cliente não tem e-mail cadastrado", async () => {
+    const cliente = criarCliente(null);
+    await clienteRepository.salvar(cliente);
+    const cobranca = criarCobranca(cliente.id);
+
+    await notificador.notificarPagamentoConfirmado(cobranca);
+
+    expect(canalNotificacao.chamadas).toHaveLength(0);
+    expect(mensagemRepository.mensagens).toHaveLength(1);
+    expect(mensagemRepository.mensagens[0]?.canal).toBe("whatsapp");
   });
 });

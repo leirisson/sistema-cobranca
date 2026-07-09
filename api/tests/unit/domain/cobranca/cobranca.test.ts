@@ -48,6 +48,7 @@ describe("Cobranca", () => {
       status: "PAGO",
       gatewayChargeId: "asaas_123",
       linkPagamento: "https://sandbox.asaas.com/i/asaas_123",
+      pixCopiaECola: null,
       paidAt: new Date("2026-08-05"),
       createdAt: new Date("2026-08-01"),
       updatedAt: new Date("2026-08-05"),
@@ -55,6 +56,18 @@ describe("Cobranca", () => {
 
     expect(cobranca.status).toBe("PAGO");
     expect(cobranca.paidAt).toEqual(new Date("2026-08-05"));
+  });
+
+  it("aceita e expõe o código PIX copia-e-cola quando informado", () => {
+    const cobranca = Cobranca.criar({ ...dadosValidos(), pixCopiaECola: "00020126...6304ABCD" });
+
+    expect(cobranca.pixCopiaECola).toBe("00020126...6304ABCD");
+  });
+
+  it("permite criar cobrança sem código PIX (nem todo gateway/situação devolve)", () => {
+    const cobranca = Cobranca.criar(dadosValidos());
+
+    expect(cobranca.pixCopiaECola).toBeNull();
   });
 
   it("marca cobrança como paga (transição PENDENTE → PAGO)", () => {

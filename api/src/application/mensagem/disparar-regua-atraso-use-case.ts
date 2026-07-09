@@ -6,7 +6,7 @@ import { MensagemEnviada } from "../../domain/mensagem/mensagem-enviada.js";
 import type { MensagemEnviadaRepository } from "../../domain/mensagem/mensagem-enviada-repository.js";
 import { montarEmailMensagem } from "../../domain/mensagem/template-email.js";
 import { montarTextoMensagem, type TipoMensagemComTemplate } from "../../domain/mensagem/template-mensagem.js";
-import { enviarMensagemComFallback } from "./enviar-mensagem-com-fallback.js";
+import { enviarMensagemMultiplosCanais } from "./enviar-mensagem-multiplos-canais.js";
 
 const MILISSEGUNDOS_POR_DIA = 1000 * 60 * 60 * 24;
 const MARCOS_REGUA: Record<number, TipoMensagemComTemplate> = {
@@ -58,6 +58,7 @@ export class DispararReguaAtrasoUseCase {
         valor: cobranca.valor,
         vencimento: cobranca.vencimento,
         linkPagamento: cobranca.linkPagamento,
+        pixCopiaECola: cobranca.pixCopiaECola,
       });
 
       const email = montarEmailMensagem(tipo, {
@@ -65,9 +66,10 @@ export class DispararReguaAtrasoUseCase {
         valor: cobranca.valor,
         vencimento: cobranca.vencimento,
         linkPagamento: cobranca.linkPagamento,
+        pixCopiaECola: cobranca.pixCopiaECola,
       });
 
-      const resultado = await enviarMensagemComFallback(this.canalMensagem, this.canalNotificacao, {
+      const resultados = await enviarMensagemMultiplosCanais(this.canalMensagem, this.canalNotificacao, {
         telefone: telefonePrincipal.numero,
         texto,
         email: cliente.email,
@@ -75,13 +77,15 @@ export class DispararReguaAtrasoUseCase {
         corpoHtmlEmail: email.corpoHtml,
       });
 
-      const mensagem = MensagemEnviada.criar({
-        cobrancaId: cobranca.id,
-        tipo,
-        statusEnvio: resultado.statusEnvio,
-        canal: resultado.canal,
-      });
-      await this.mensagemEnviadaRepository.salvar(mensagem);
+      for (const resultado of resultados) {
+        const mensagem = MensagemEnviada.criar({
+          cobrancaId: cobranca.id,
+          tipo,
+          statusEnvio: resultado.statusEnvio,
+          canal: resultado.canal,
+        });
+        await this.mensagemEnviadaRepository.salvar(mensagem);
+      }
     }
   }
 

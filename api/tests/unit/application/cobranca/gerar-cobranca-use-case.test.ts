@@ -59,6 +59,7 @@ describe("GerarCobrancaUseCase", () => {
     expect(cobranca.status).toBe("PENDENTE");
     expect(cobranca.gatewayChargeId).toBe("asaas_1");
     expect(cobranca.vencimento.getUTCDate()).toBe(10);
+    expect(cobranca.pixCopiaECola).toBe("00020126...asaas_1");
     expect(geradas).toHaveLength(1);
     expect(geradas[0]!.id).toBe(cobranca.id);
   });

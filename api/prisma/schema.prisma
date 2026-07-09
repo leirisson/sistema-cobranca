@@ -85,6 +85,7 @@ model Cobranca {
   status           StatusCobranca @default(PENDENTE)
   gatewayChargeId  String?        @unique @map("gateway_charge_id")
   linkPagamento    String?        @map("link_pagamento")
+  pixCopiaECola    String?        @map("pix_copia_e_cola")
   paidAt           DateTime?      @map("paid_at")
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")

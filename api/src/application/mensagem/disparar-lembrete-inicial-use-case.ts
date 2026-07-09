@@ -7,7 +7,7 @@ import { MensagemEnviada } from "../../domain/mensagem/mensagem-enviada.js";
 import type { MensagemEnviadaRepository } from "../../domain/mensagem/mensagem-enviada-repository.js";
 import { montarEmailMensagem } from "../../domain/mensagem/template-email.js";
 import { montarTextoMensagem } from "../../domain/mensagem/template-mensagem.js";
-import { enviarMensagemComFallback } from "./enviar-mensagem-com-fallback.js";
+import { enviarMensagemMultiplosCanais } from "./enviar-mensagem-multiplos-canais.js";
 
 export class DispararLembreteInicialUseCase {
   constructor(
@@ -35,6 +35,7 @@ export class DispararLembreteInicialUseCase {
       valor: cobranca.valor,
       vencimento: cobranca.vencimento,
       linkPagamento: cobranca.linkPagamento,
+      pixCopiaECola: cobranca.pixCopiaECola,
     });
 
     const email = montarEmailMensagem("LEMBRETE", {
@@ -42,9 +43,10 @@ export class DispararLembreteInicialUseCase {
       valor: cobranca.valor,
       vencimento: cobranca.vencimento,
       linkPagamento: cobranca.linkPagamento,
+      pixCopiaECola: cobranca.pixCopiaECola,
     });
 
-    const resultado = await enviarMensagemComFallback(this.canalMensagem, this.canalNotificacao, {
+    const resultados = await enviarMensagemMultiplosCanais(this.canalMensagem, this.canalNotificacao, {
       telefone: telefonePrincipal.numero,
       texto,
       email: cliente.email,
@@ -52,13 +54,15 @@ export class DispararLembreteInicialUseCase {
       corpoHtmlEmail: email.corpoHtml,
     });
 
-    const mensagem = MensagemEnviada.criar({
-      cobrancaId: cobranca.id,
-      tipo: "LEMBRETE",
-      statusEnvio: resultado.statusEnvio,
-      canal: resultado.canal,
-    });
+    for (const resultado of resultados) {
+      const mensagem = MensagemEnviada.criar({
+        cobrancaId: cobranca.id,
+        tipo: "LEMBRETE",
+        statusEnvio: resultado.statusEnvio,
+        canal: resultado.canal,
+      });
 
-    await this.mensagemEnviadaRepository.salvar(mensagem);
+      await this.mensagemEnviadaRepository.salvar(mensagem);
+    }
   }
 }

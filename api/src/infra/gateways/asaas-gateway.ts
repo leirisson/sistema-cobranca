@@ -22,6 +22,10 @@ interface AsaasPaymentResponse {
   invoiceUrl: string;
 }
 
+interface AsaasPixQrCodeResponse {
+  payload: string;
+}
+
 export class AsaasGateway implements GatewayPagamento {
   constructor(private readonly config: AsaasGatewayConfig) {}
 
@@ -44,11 +48,31 @@ export class AsaasGateway implements GatewayPagamento {
     }
 
     const payment = (await response.json()) as AsaasPaymentResponse;
+    const pixCopiaECola = await this.buscarPixCopiaECola(payment.id);
 
     return {
       gatewayChargeId: payment.id,
       linkPagamento: payment.invoiceUrl,
+      pixCopiaECola,
     };
+  }
+
+  private async buscarPixCopiaECola(paymentId: string): Promise<string | null> {
+    try {
+      const response = await fetch(`${this.config.baseUrl}/payments/${paymentId}/pixQrCode`, {
+        headers: this.headers(),
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const pix = (await response.json()) as AsaasPixQrCodeResponse;
+
+      return pix.payload;
+    } catch {
+      return null;
+    }
   }
 
   private async buscarOuCriarCustomer(input: CriarCobrancaGatewayInput): Promise<string> {

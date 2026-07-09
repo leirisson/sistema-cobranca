@@ -1,9 +1,6 @@
 # Tasks — Dashboard (DASH)
 
-> Fase TASKS ainda não iniciada. Preencher quando o módulo `dashboard` entrar em execução,
-> quebrando cada user story/requisito de `spec.md` em tasks executáveis e rastreáveis pelo ID (ex: `DASH-01`).
-
-- [ ] DASH-01 — Implementar endpoint de listagem de cobranças + frontend Next.js
-- [ ] DASH-02 — Implementar filtro por `status` na query
-- [ ] DASH-03 — Implementar agregação de totais (soma por status)
-- [ ] DASH-04 — Implementar busca por nome (join com `Cliente`)
+- [x] DASH-01 — Implementar endpoint de listagem de cobranças (`GET /dashboard/cobrancas`) — frontend Next.js **ainda não implementado**, decisão explícita do usuário de fazer backend primeiro (ver CLAUDE.md seção 10)
+- [x] DASH-02 — Implementar filtro por `status` na query
+- [x] DASH-03 — Implementar agregação de totais (soma por status)
+- [x] DASH-04 — Implementar busca por nome (join com `Cliente`)

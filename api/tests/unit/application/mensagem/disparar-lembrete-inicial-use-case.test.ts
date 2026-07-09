@@ -75,7 +75,7 @@ describe("DispararLembreteInicialUseCase", () => {
     expect(mensagemRepository.mensagens[0]?.cobrancaId).toBe(cobranca.id);
   });
 
-  it("registra falha sem lançar erro quando o canal falha e não há e-mail de fallback (MSG-R-06)", async () => {
+  it("registra falha sem lançar erro quando o WhatsApp falha e não há e-mail cadastrado (MSG-R-06)", async () => {
     const cliente = criarCliente();
     await clienteRepository.salvar(cliente);
     canalMensagem.deveFalharPara.add(cliente.telefonePrincipal!.numero);
@@ -83,6 +83,7 @@ describe("DispararLembreteInicialUseCase", () => {
 
     await expect(useCase.executar(cobranca)).resolves.not.toThrow();
 
+    expect(mensagemRepository.mensagens).toHaveLength(1);
     expect(mensagemRepository.mensagens[0]?.statusEnvio).toBe("FALHA");
     expect(mensagemRepository.mensagens[0]?.canal).toBe("whatsapp");
   });
@@ -93,18 +94,25 @@ describe("DispararLembreteInicialUseCase", () => {
     await expect(useCase.executar(cobranca)).rejects.toThrow();
   });
 
-  it("registra canal whatsapp quando o envio por WhatsApp funciona (EMAIL-R-06)", async () => {
+  it("envia por WhatsApp e por e-mail em paralelo quando o cliente tem os dois canais cadastrados (EMAIL-R-06)", async () => {
     const cliente = criarCliente(undefined, "maria@example.com");
     await clienteRepository.salvar(cliente);
     const cobranca = criarCobranca(cliente.id);
 
     await useCase.executar(cobranca);
 
-    expect(canalNotificacao.chamadas).toHaveLength(0);
-    expect(mensagemRepository.mensagens[0]?.canal).toBe("whatsapp");
+    expect(canalMensagem.chamadas).toHaveLength(1);
+    expect(canalNotificacao.chamadas).toHaveLength(1);
+    expect(canalNotificacao.chamadas[0]?.destinatario).toBe("maria@example.com");
+    expect(canalNotificacao.chamadas[0]?.corpoHtml).toContain(cobranca.linkPagamento);
+    expect(mensagemRepository.mensagens).toHaveLength(2);
+    expect(mensagemRepository.mensagens.map((m) => m.canal)).toEqual(
+      expect.arrayContaining(["whatsapp", "email"]),
+    );
+    expect(mensagemRepository.mensagens.every((m) => m.statusEnvio === "ENVIADO")).toBe(true);
   });
 
-  it("tenta fallback por e-mail quando o WhatsApp falha e o cliente tem e-mail cadastrado (EMAIL-R-05)", async () => {
+  it("registra FALHA no whatsapp e ENVIADO no e-mail quando só o WhatsApp falha (EMAIL-R-05)", async () => {
     const cliente = criarCliente(undefined, "maria@example.com");
     await clienteRepository.salvar(cliente);
     canalMensagem.deveFalharPara.add(cliente.telefonePrincipal!.numero);
@@ -113,13 +121,13 @@ describe("DispararLembreteInicialUseCase", () => {
     await useCase.executar(cobranca);
 
     expect(canalNotificacao.chamadas).toHaveLength(1);
-    expect(canalNotificacao.chamadas[0]?.destinatario).toBe("maria@example.com");
-    expect(canalNotificacao.chamadas[0]?.corpoHtml).toContain(cobranca.linkPagamento);
-    expect(mensagemRepository.mensagens[0]?.statusEnvio).toBe("ENVIADO");
-    expect(mensagemRepository.mensagens[0]?.canal).toBe("email");
+    expect(mensagemRepository.mensagens).toHaveLength(2);
+    const porCanal = Object.fromEntries(mensagemRepository.mensagens.map((m) => [m.canal, m.statusEnvio]));
+    expect(porCanal.whatsapp).toBe("FALHA");
+    expect(porCanal.email).toBe("ENVIADO");
   });
 
-  it("registra FALHA quando WhatsApp e o fallback por e-mail falham (EMAIL-R-07)", async () => {
+  it("registra FALHA nos dois canais quando WhatsApp e e-mail falham (EMAIL-R-07)", async () => {
     const cliente = criarCliente(undefined, "maria@example.com");
     await clienteRepository.salvar(cliente);
     canalMensagem.deveFalharPara.add(cliente.telefonePrincipal!.numero);
@@ -128,20 +136,19 @@ describe("DispararLembreteInicialUseCase", () => {
 
     await expect(useCase.executar(cobranca)).resolves.not.toThrow();
 
-    expect(mensagemRepository.mensagens[0]?.statusEnvio).toBe("FALHA");
-    expect(mensagemRepository.mensagens[0]?.canal).toBe("email");
+    expect(mensagemRepository.mensagens).toHaveLength(2);
+    expect(mensagemRepository.mensagens.every((m) => m.statusEnvio === "FALHA")).toBe(true);
   });
 
-  it("não tenta fallback por e-mail quando o cliente não tem e-mail cadastrado (EMAIL-R-01)", async () => {
+  it("não tenta enviar e-mail quando o cliente não tem e-mail cadastrado (EMAIL-R-01)", async () => {
     const cliente = criarCliente(undefined, null);
     await clienteRepository.salvar(cliente);
-    canalMensagem.deveFalharPara.add(cliente.telefonePrincipal!.numero);
     const cobranca = criarCobranca(cliente.id);
 
     await useCase.executar(cobranca);
 
     expect(canalNotificacao.chamadas).toHaveLength(0);
-    expect(mensagemRepository.mensagens[0]?.statusEnvio).toBe("FALHA");
+    expect(mensagemRepository.mensagens).toHaveLength(1);
     expect(mensagemRepository.mensagens[0]?.canal).toBe("whatsapp");
   });
 });

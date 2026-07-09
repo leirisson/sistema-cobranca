@@ -162,7 +162,7 @@ describe("DispararReguaAtrasoUseCase", () => {
     expect(sucesso?.statusEnvio).toBe("ENVIADO");
   });
 
-  it("tenta fallback por e-mail quando o WhatsApp falha e o cliente tem e-mail cadastrado (EMAIL-R-05)", async () => {
+  it("envia por WhatsApp e por e-mail em paralelo quando o cliente tem os dois canais cadastrados (EMAIL-R-05)", async () => {
     const clienteComEmail = Cliente.criar({
       nome: "Ana Souza",
       documento: "98765432100",
@@ -172,7 +172,6 @@ describe("DispararReguaAtrasoUseCase", () => {
       diaVencimento: 10,
     });
     await clienteRepository.salvar(clienteComEmail);
-    canalMensagem.deveFalharPara.add("+5511977776666");
 
     const cobranca = criarCobranca(clienteComEmail.id, new Date("2026-08-10"));
     await cobrancaRepository.salvar(cobranca);
@@ -181,7 +180,10 @@ describe("DispararReguaAtrasoUseCase", () => {
 
     expect(canalNotificacao.chamadas).toHaveLength(1);
     expect(canalNotificacao.chamadas[0]?.destinatario).toBe("ana@example.com");
-    expect(mensagemRepository.mensagens[0]?.statusEnvio).toBe("ENVIADO");
-    expect(mensagemRepository.mensagens[0]?.canal).toBe("email");
+    expect(mensagemRepository.mensagens).toHaveLength(2);
+    expect(mensagemRepository.mensagens.every((m) => m.statusEnvio === "ENVIADO")).toBe(true);
+    expect(mensagemRepository.mensagens.map((m) => m.canal)).toEqual(
+      expect.arrayContaining(["whatsapp", "email"]),
+    );
   });
 });

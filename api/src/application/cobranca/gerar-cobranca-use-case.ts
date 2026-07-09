@@ -45,6 +45,7 @@ export class GerarCobrancaUseCase {
         vencimento,
         gatewayChargeId: resultadoGateway.gatewayChargeId,
         linkPagamento: resultadoGateway.linkPagamento,
+        pixCopiaECola: resultadoGateway.pixCopiaECola,
       });
 
       await this.cobrancaRepository.salvar(cobranca);

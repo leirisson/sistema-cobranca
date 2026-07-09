@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 
 import { env } from "../../shared/config/env.js";
+import { dashboardRoutes } from "./routes/dashboard.js";
 import { healthRoutes } from "./routes/health.js";
 import { webhookAsaasRoutes } from "./routes/webhook-asaas.js";
 
@@ -17,6 +18,7 @@ export function buildApp() {
 
   app.register(healthRoutes);
   app.register(webhookAsaasRoutes);
+  app.register(dashboardRoutes);
 
   return app;
 }

@@ -1,4 +1,4 @@
-import { enviarMensagemComFallback } from "../../application/mensagem/enviar-mensagem-com-fallback.js";
+import { enviarMensagemMultiplosCanais } from "../../application/mensagem/enviar-mensagem-multiplos-canais.js";
 import type { ClienteRepository } from "../../domain/cliente/cliente-repository.js";
 import { ClienteNaoEncontradoError } from "../../domain/cliente/cliente-nao-encontrado-error.js";
 import type { Cobranca } from "../../domain/cobranca/cobranca.js";
@@ -33,7 +33,7 @@ export class MensagemNotificadorConfirmacao implements NotificadorConfirmacao {
     const texto = montarTextoConfirmacao({ nomeCliente: cliente.nome, valor: cobranca.valor });
     const email = montarEmailConfirmacao({ nomeCliente: cliente.nome, valor: cobranca.valor });
 
-    const resultado = await enviarMensagemComFallback(this.canalMensagem, this.canalNotificacao, {
+    const resultados = await enviarMensagemMultiplosCanais(this.canalMensagem, this.canalNotificacao, {
       telefone: telefonePrincipal.numero,
       texto,
       email: cliente.email,
@@ -41,13 +41,15 @@ export class MensagemNotificadorConfirmacao implements NotificadorConfirmacao {
       corpoHtmlEmail: email.corpoHtml,
     });
 
-    const mensagem = MensagemEnviada.criar({
-      cobrancaId: cobranca.id,
-      tipo: "CONFIRMACAO",
-      statusEnvio: resultado.statusEnvio,
-      canal: resultado.canal,
-    });
+    for (const resultado of resultados) {
+      const mensagem = MensagemEnviada.criar({
+        cobrancaId: cobranca.id,
+        tipo: "CONFIRMACAO",
+        statusEnvio: resultado.statusEnvio,
+        canal: resultado.canal,
+      });
 
-    await this.mensagemEnviadaRepository.salvar(mensagem);
+      await this.mensagemEnviadaRepository.salvar(mensagem);
+    }
   }
 }

@@ -11,9 +11,18 @@ const ASSUNTOS: Record<TipoMensagemComTemplate, string> = {
   ATRASO: "Cobrança em Atraso",
 };
 
+function montarBlocoPixHtml(pixCopiaECola?: string | null): string {
+  if (!pixCopiaECola) {
+    return "";
+  }
+
+  return `<p>Ou pague via Pix copia-e-cola:</p><p><code>${pixCopiaECola}</code></p>`;
+}
+
 export function montarEmailMensagem(tipo: TipoMensagemComTemplate, dados: DadosTemplateMensagem): EmailMensagem {
-  const texto = montarTextoMensagem(tipo, dados);
-  const corpoHtml = `<p>${texto.replace(dados.linkPagamento, `<a href="${dados.linkPagamento}">${dados.linkPagamento}</a>`)}</p>`;
+  const textoBase = montarTextoMensagem(tipo, { ...dados, pixCopiaECola: undefined });
+  const corpoLink = `<p>${textoBase.replace(dados.linkPagamento, `<a href="${dados.linkPagamento}">${dados.linkPagamento}</a>`)}</p>`;
+  const corpoHtml = `${corpoLink}${montarBlocoPixHtml(dados.pixCopiaECola)}`;
 
   return { assunto: ASSUNTOS[tipo], corpoHtml };
 }

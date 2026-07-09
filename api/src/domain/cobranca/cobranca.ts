@@ -11,6 +11,7 @@ const propsSchema = z.object({
   vencimento: z.date(),
   gatewayChargeId: z.string().trim().min(1, "gatewayChargeId não pode ser vazio"),
   linkPagamento: z.string().trim().min(1, "linkPagamento não pode ser vazio"),
+  pixCopiaECola: z.string().trim().min(1).nullish(),
 });
 
 export interface CobrancaProps {
@@ -19,6 +20,7 @@ export interface CobrancaProps {
   vencimento: Date;
   gatewayChargeId: string;
   linkPagamento: string;
+  pixCopiaECola?: string | null;
 }
 
 export interface CobrancaRestauracao extends CobrancaProps {
@@ -37,6 +39,7 @@ export class Cobranca {
   private _status: StatusCobranca;
   private readonly _gatewayChargeId: string;
   private readonly _linkPagamento: string;
+  private readonly _pixCopiaECola: string | null;
   private _paidAt: Date | null;
   readonly createdAt: Date;
   private _updatedAt: Date;
@@ -56,6 +59,7 @@ export class Cobranca {
     this._status = status;
     this._gatewayChargeId = props.gatewayChargeId;
     this._linkPagamento = props.linkPagamento;
+    this._pixCopiaECola = props.pixCopiaECola ?? null;
     this._paidAt = paidAt;
     this.createdAt = createdAt;
     this._updatedAt = updatedAt;
@@ -133,6 +137,10 @@ export class Cobranca {
 
   get linkPagamento(): string {
     return this._linkPagamento;
+  }
+
+  get pixCopiaECola(): string | null {
+    return this._pixCopiaECola;
   }
 
   get paidAt(): Date | null {
