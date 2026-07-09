@@ -8,7 +8,7 @@ import { PrismaCobrancaRepository } from "../../database/prisma-cobranca-reposit
 import { PrismaMensagemEnviadaRepository } from "../../database/prisma-mensagem-enviada-repository.js";
 import { prisma } from "../../database/prisma-client.js";
 import { EvolutionCanalMensagem } from "../../gateways/evolution-canal-mensagem.js";
-import { GmailNotificador } from "../../gateways/gmail-notificador.js";
+import { NodemailerGmailNotificador } from "../../gateways/nodemailer-gmail-notificador.js";
 import { MensagemNotificadorConfirmacao } from "../../notificacoes/mensagem-notificador-confirmacao.js";
 
 interface WebhookAsaasPayload {
@@ -25,10 +25,9 @@ export async function webhookAsaasRoutes(app: FastifyInstance) {
     apiKey: env.EVOLUTION_API_KEY,
     instance: env.EVOLUTION_INSTANCE,
   });
-  const canalNotificacao = new GmailNotificador({
-    clientId: env.GMAIL_CLIENT_ID,
-    clientSecret: env.GMAIL_CLIENT_SECRET,
-    refreshToken: env.GMAIL_REFRESH_TOKEN,
+  const canalNotificacao = new NodemailerGmailNotificador({
+    usuario: env.GMAIL_USUARIO,
+    senhaApp: env.GMAIL_SENHA_APP,
     remetente: env.GMAIL_REMETENTE,
   });
   const notificador = new MensagemNotificadorConfirmacao(

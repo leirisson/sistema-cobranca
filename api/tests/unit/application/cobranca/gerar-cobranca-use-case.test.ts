@@ -44,15 +44,23 @@ describe("GerarCobrancaUseCase", () => {
     await clienteRepository.salvar(cliente);
     const hoje = new Date("2026-08-05T00:00:00Z");
 
-    await useCase.executar(hoje);
+    const geradas = await useCase.executar(hoje);
 
     expect(gateway.chamadas).toHaveLength(1);
+    expect(gateway.chamadas[0]).toMatchObject({
+      clienteId: cliente.id,
+      nomeCliente: cliente.nome,
+      documentoCliente: cliente.documento,
+      emailCliente: cliente.email,
+    });
     expect(cobrancaRepository.cobrancas).toHaveLength(1);
     const cobranca = cobrancaRepository.cobrancas[0]!;
     expect(cobranca.clienteId).toBe(cliente.id);
     expect(cobranca.status).toBe("PENDENTE");
     expect(cobranca.gatewayChargeId).toBe("asaas_1");
     expect(cobranca.vencimento.getUTCDate()).toBe(10);
+    expect(geradas).toHaveLength(1);
+    expect(geradas[0]!.id).toBe(cobranca.id);
   });
 
   it("não gera cobrança quando vencimento está fora da janela de antecedência", async () => {

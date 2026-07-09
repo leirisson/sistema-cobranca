@@ -13,8 +13,9 @@ export class GerarCobrancaUseCase {
     private readonly antecedenciaDias: number,
   ) {}
 
-  async executar(hoje: Date): Promise<void> {
+  async executar(hoje: Date): Promise<Cobranca[]> {
     const clientesAtivos = await this.clienteRepository.listarAtivos();
+    const cobrancasGeradas: Cobranca[] = [];
 
     for (const cliente of clientesAtivos) {
       const vencimento = this.calcularVencimentoDoCiclo(hoje, cliente.diaVencimento);
@@ -33,6 +34,9 @@ export class GerarCobrancaUseCase {
         clienteId: cliente.id,
         valor: cliente.valorCobranca,
         vencimento,
+        nomeCliente: cliente.nome,
+        documentoCliente: cliente.documento,
+        emailCliente: cliente.email,
       });
 
       const cobranca = Cobranca.criar({
@@ -44,7 +48,10 @@ export class GerarCobrancaUseCase {
       });
 
       await this.cobrancaRepository.salvar(cobranca);
+      cobrancasGeradas.push(cobranca);
     }
+
+    return cobrancasGeradas;
   }
 
   private calcularVencimentoDoCiclo(hoje: Date, diaVencimento: number): Date {

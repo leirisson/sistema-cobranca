@@ -34,7 +34,7 @@ Sistema de cobrança automática (nome provisório: CobraCerta) para prestadores
 | Containerização | Docker / Docker Compose | Postgres + Redis em dev |
 | Gateway de pagamento | Asaas | boleto + PIX, via HTTP direto (fetch), sandbox primeiro |
 | WhatsApp | Evolution API | envio de lembretes/confirmações |
-| E-mail | Gmail API (`googleapis`, OAuth2) | canal complementar (módulo `notificacoes-email`) |
+| E-mail | Gmail via `nodemailer` (senha de app) | canal complementar (módulo `notificacoes-email`) |
 | Observabilidade | Pino | logger estruturado integrado ao Fastify |
 | Frontend dashboard | Next.js | interface simples, sem necessidade de design elaborado no v1 |
 | Dev tooling | tsx (watch), ESLint | — |
@@ -146,9 +146,8 @@ Demais módulos (`dashboard`): ver `api/specs/dashboard/tasks.md`. Ainda não in
 
 | Job | Trigger | Descrição | Status |
 |-----|---------|-----------|--------|
-| Geração de cobrança | cron diário (previsto) | `GerarCobrancaUseCase` já existe e é testável; falta apenas o wrapper BullMQ que chama `.executar(new Date())` num cron diário | Use case pronto, job BullMQ **não implementado** |
-| Disparo de lembrete inicial | após geração de cobrança | `DispararLembreteInicialUseCase` já existe e é testável (envia LEMBRETE via `CanalMensagem`, com fallback por e-mail via `CanalNotificacao`); falta só a chamada a partir de `GerarCobrancaUseCase`/job de geração | Use case pronto, wiring **não implementado** |
-| Disparo da régua de atraso | cron diário (previsto) | `DispararReguaAtrasoUseCase` já existe e é testável (VENCIMENTO/ATRASO em D0/D+1/D+3); falta apenas o wrapper BullMQ que chama `.executar(new Date())` num cron diário | Use case pronto, job BullMQ **não implementado** |
+| Geração de cobrança | cron diário `0 8 * * *` (BullMQ `upsertJobScheduler`) | `src/infra/queue/gerar-cobranca-job.ts` chama `GerarCobrancaUseCase.executar(new Date())` (retorna as `Cobranca[]` geradas) e, para cada uma, dispara `DispararLembreteInicialUseCase.executar(cobranca)`, isolando falha por cobrança (loga e continua) | **Implementado**, roda no mesmo processo do Fastify |
+| Disparo da régua de atraso | cron diário `0 9 * * *` (BullMQ `upsertJobScheduler`) | `src/infra/queue/disparar-regua-atraso-job.ts` chama `DispararReguaAtrasoUseCase.executar(new Date())` | **Implementado**, roda no mesmo processo do Fastify |
 
 ---
 
@@ -161,9 +160,10 @@ Demais módulos (`dashboard`): ver `api/specs/dashboard/tasks.md`. Ainda não in
 | 1 | Service Object / Use Case | Lógica de negócio, um verbo + substantivo | `CriarClienteUseCase`, `InativarClienteUseCase` |
 | 2 | Job Pattern | Tarefas assíncronas (BullMQ) | job de geração de cobrança, job de disparo de lembrete |
 | 3 | Repository Pattern | Acesso a dados via Prisma, interface no domínio | `ClienteRepository` |
-| 4 | Porta/Adapter | Integração externa (gateway de pagamento, WhatsApp, e-mail) | porta "o que um gateway de pagamento faz" ⇄ `AsaasGateway`; `NotificadorConfirmacao` ⇄ `MensagemNotificadorConfirmacao` (`src/infra/notificacoes/`, WhatsApp com fallback e-mail); `CanalMensagem` ⇄ `EvolutionCanalMensagem` (`src/infra/gateways/evolution-canal-mensagem.ts`, HTTP direto via fetch contra a Evolution API, sem SDK de terceiros); `CanalNotificacao` ⇄ `GmailNotificador` (`src/infra/gateways/gmail-notificador.ts`, Gmail API via `googleapis`, OAuth2 com refresh token, mensagem RFC 2822 codificada em base64url) |
+| 4 | Porta/Adapter | Integração externa (gateway de pagamento, WhatsApp, e-mail) | porta "o que um gateway de pagamento faz" ⇄ `AsaasGateway`; `NotificadorConfirmacao` ⇄ `MensagemNotificadorConfirmacao` (`src/infra/notificacoes/`, WhatsApp com fallback e-mail); `CanalMensagem` ⇄ `EvolutionCanalMensagem` (`src/infra/gateways/evolution-canal-mensagem.ts`, HTTP direto via fetch contra a Evolution API, sem SDK de terceiros); `CanalNotificacao` ⇄ `NodemailerGmailNotificador` (`src/infra/gateways/nodemailer-gmail-notificador.ts`, Gmail via `nodemailer`, transport `service: "gmail"` autenticado com usuário + senha de app) |
 | 5 | Erro de domínio | Erros de regra de negócio | `DomainError` (base, `src/shared/errors/domain-error.ts`) → subclasses como `ClienteInvalidoError` |
-| 6 | _[Adicionar conforme o projeto cresce]_ | — | — |
+| 6 | Queue + Worker + JobScheduler (BullMQ) | Cron diário que roda no mesmo processo do Fastify | `src/infra/queue/gerar-cobranca-job.ts` e `disparar-regua-atraso-job.ts`: cada job expõe `criar<Nome>Queue()`, `agendar<Nome>Job(queue)` (chama `queue.upsertJobScheduler` com `pattern` cron) e `criar<Nome>Worker()`; `src/infra/queue/use-cases-factory.ts` centraliza a instanciação dos use cases com adapters reais (mesmo padrão de `webhook-asaas.ts`); `src/infra/queue/workers.ts#iniciarWorkers` é chamado uma vez em `server.ts` após o `app.listen` |
+| 7 | _[Adicionar conforme o projeto cresce]_ | — | — |
 
 ---
 
@@ -173,9 +173,10 @@ Demais módulos (`dashboard`): ver `api/specs/dashboard/tasks.md`. Ainda não in
 
 ### 6.1 APIs Externas
 
-#### Gmail API (`googleapis`)
-- **Decisão:** autenticação via OAuth2 (client id/secret + refresh token), nunca usuário/senha (EMAIL-R-02). `GmailNotificador` monta a mensagem manualmente no formato RFC 2822 (`From`/`To`/`Subject`/`Content-Type: text/html` + corpo) e codifica em base64url antes de chamar `gmail.users.messages.send` — não há necessidade de biblioteca adicional de parsing de e-mail (`nodemailer` etc.) só para montar o payload.
-- **Ainda não validado contra a API real:** só testado com fake (`FakeCanalNotificacao`) nos testes unitários. Falta configurar uma conta Google Workspace/Gmail real (client id/secret via Google Cloud Console, gerar refresh token) antes do primeiro envio real em produção — variáveis `GMAIL_CLIENT_ID`/`GMAIL_CLIENT_SECRET`/`GMAIL_REFRESH_TOKEN`/`GMAIL_REMETENTE` ficam vazias em `.env` até lá.
+#### Gmail via Nodemailer
+- **Decisão (atual, 2026-07-08):** autenticação via usuário + senha de app do Google (`nodemailer.createTransport({ service: "gmail", auth: { user, pass } })`), não mais OAuth2. `NodemailerGmailNotificador` (`src/infra/gateways/nodemailer-gmail-notificador.ts`) monta o envio direto via `transporter.sendMail({ from, to, subject, html })` — Nodemailer cuida do envelope da mensagem, não precisa mais montar RFC 2822/base64url manualmente.
+- **Decisão anterior (revertida):** o módulo usou Gmail API via OAuth2 (`googleapis`, client id/secret + refresh token) entre 2026-07-08 e a troca para Nodemailer no mesmo dia — nunca chegou a ser configurado com credenciais reais em produção. Trocado por Nodemailer + senha de app por ser mais simples de configurar (não depende de criar projeto/OAuth consent screen no Google Cloud Console, só gerar uma senha de app na conta Gmail). Ver ADR (seção 8).
+- **Validado contra o Gmail real em 2026-07-08:** com a senha de app gerada pelo usuário e configurada em `GMAIL_USUARIO`/`GMAIL_SENHA_APP`/`GMAIL_REMETENTE` no `.env`, um envio real via `nodemailer.createTransport({ service: "gmail", ... })` foi disparado e confirmado entregue (resposta SMTP `250 2.0.0 OK` do Gmail). A senha de app com espaços (formato exibido pelo Google, ex: `abcd efgh ijkl mnop`) funciona sem precisar remover os espaços.
 
 ### 6.2 Ambiente e Deploy
 
@@ -209,7 +210,13 @@ Demais módulos (`dashboard`): ver `api/specs/dashboard/tasks.md`. Ainda não in
   **Solução:** como o projeto está em dev/pré-produção (nenhum cliente real cadastrado ainda), a mudança foi feita diretamente na entidade e no schema, sem shim de compatibilidade: `telefone` virou tabela `TelefoneCliente` (1:N, exatamente 1 `principal`), `documento` passou a exigir 11 (CPF) ou 14 (CNPJ) dígitos. Migration `20260708180622_enriquecer_cadastro_cliente_v1_2` aplicada com `ALTER COLUMN documento SET NOT NULL` — só funciona porque a tabela estava vazia nos bancos dev/test; em produção com dados reais precisaria de um passo de backfill antes.
   **Regra geral:** specs incrementais (`mvp-v*.md` ou `spec.md` de um módulo já implementado) que mudam o shape de uma entidade existente devem ser tratadas como breaking change direto enquanto não houver dados de produção — não vale a pena manter compatibilidade retroativa para um shape que nunca foi usado de verdade.
 
-### 6.7 Outros
+### 6.7 `env.ts` não carregava `.env` fora dos testes
+
+- **Problema:** `src/shared/config/env.ts` sempre leu só `process.env` cru — nunca chamou `dotenv.config()`. Os testes nunca sentiram isso porque `tests/setup-env.ts` já carrega `.env.test` via `dotenv` antes da suíte rodar (`vitest.config.ts` → `setupFiles`). Mas `npm run dev`/`npm start` (que rodam `server.ts` direto, sem esse setup) sempre falhavam no boot com "Variáveis de ambiente inválidas" mesmo com um `.env` preenchido, porque nada colocava o `.env` em `process.env` antes da validação Zod. Só foi descoberto ao validar o wiring dos jobs subindo o servidor de verdade pela primeira vez (ver seção 10, entrada de wiring dos jobs BullMQ).
+  **Solução:** `env.ts` agora chama `config()` do pacote `dotenv` (já era dependência do projeto) no topo do arquivo, condicionado a `NODE_ENV !== "test"` (em test o carregamento continua sendo responsabilidade explícita de `tests/setup-env.ts`, pra não ler o `.env` errado).
+  **Regra geral:** qualquer entrypoint novo que não passe por `tests/setup-env.ts` (scripts standalone, workers separados, etc.) depende desse `config()` em `env.ts` para funcionar fora de `npm test` — não recriar carregamento de `.env` em outros lugares.
+
+### 6.8 Outros
 
 - O `.gitignore` da raiz originalmente continha `specs`, `mvp-v1`, `mvp-v2`, `mvp-v3` e `claude.md`, o que ignorava silenciosamente toda a documentação de specs/MVP dentro de `api/` e este próprio arquivo.
   **Solução:** `.gitignore` da raiz reduzido para conter apenas `.claude` (config local do Claude Code). Specs e `claude.md` agora são versionados normalmente.
@@ -290,6 +297,10 @@ npx tsc -p tsconfig.test.json --noEmit
 | 2026-07-08 | Módulo `mensagens` (MSG) dividido em dois use cases (`DispararLembreteInicialUseCase` para MSG-01, `DispararReguaAtrasoUseCase` para MSG-02/03/04) em vez de um único use case genérico | Decisão explícita do usuário (opção escolhida entre as alternativas apresentadas): mantém explícito qual é o gatilho de cada mensagem — o lembrete inicial nasce junto da geração da cobrança, a régua de atraso roda em cron diário separado — em vez de um único use case tentando cobrir os dois gatilhos |
 | 2026-07-08 | Deduplicação de envio (evitar reenviar o mesmo tipo de mensagem pra mesma cobrança, ex: cron rodando 2x) feita consultando `MensagemEnviadaRepository.existeParaCobrancaETipo` em vez de um campo de controle novo na entidade `Cobranca` | Decisão explícita do usuário: reaproveita a tabela `MensagemEnviada` que MSG-R-05 já exige como fonte de verdade, sem duplicar esse estado em `Cobranca` (entidade de COB, módulo já estável) |
 | 2026-07-08 | Campo `statusEnvio` de `MensagemEnviada` guarda só o resultado (`"ENVIADO"` \| `"FALHA"`), não o texto bruto do erro | Decisão explícita do usuário: mantém a tabela simples para MSG-R-05/06; debug de erro de envio fica pro log estruturado (Pino), não pra coluna do banco |
+| 2026-07-08 | `AsaasGateway` cria/busca o customer no Asaas on-the-fly (por `cpfCnpj`) a cada cobrança, em vez de guardar `asaasCustomerId` em `Cliente` | Decisão explícita do usuário (opção escolhida entre as duas apresentadas): evita migration/campo novo numa entidade já estável (`Cliente`), aceitando uma chamada HTTP a mais (`GET /v3/customers?cpfCnpj=`) por cobrança gerada — volume baixo o suficiente (MVP single-tenant) pra não justificar o cache |
+| 2026-07-08 | Workers BullMQ (geração de cobrança + régua de atraso) rodam no mesmo processo do Fastify, iniciados por `iniciarWorkers()` chamado após `app.listen` em `server.ts` | Decisão explícita do usuário: dado o volume baixo do MVP single-tenant (seção 9, "Single-tenant"), processo separado (`npm run worker` dedicado) adicionaria complexidade operacional sem benefício correspondente agora |
+| 2026-07-08 | `GerarCobrancaUseCase.executar()` passou a retornar `Cobranca[]` (antes `Promise<void>`) | Necessário para o job de geração saber exatamente quais cobranças foram criadas nesta execução e disparar `DispararLembreteInicialUseCase` só para elas — evita reprocessar todas as cobranças pendentes do sistema a cada rodada do cron |
+| 2026-07-08 | `GmailNotificador` (Gmail API via OAuth2/`googleapis`) substituído por `NodemailerGmailNotificador` (Nodemailer, transport Gmail com usuário + senha de app) | Decisão explícita do usuário, trazendo uma spec já validada em outro projeto: senha de app é mais simples de configurar (só a conta Google → Segurança → Senhas de app) do que o fluxo OAuth2 (projeto no Google Cloud Console, client id/secret, geração de refresh token) — nenhuma das duas credenciais chegou a ser configurada em produção, então a troca não teve custo de migração de dado real. A porta `CanalNotificacao` não mudou, só o adapter (ver seção 6.1) |
 
 ---
 
@@ -308,6 +319,39 @@ npx tsc -p tsconfig.test.json --noEmit
 ## 10. Linha do Tempo do Projeto (0% → 100%)
 
 > Registro cronológico de marcos. Cada entrada nova vai **no topo** da lista (mais recente primeiro), com data e um resumo do que mudou de estado.
+
+### 2026-07-08 — Troca do canal de e-mail: Gmail API/OAuth2 → Nodemailer/senha de app (via TDD)
+- Decisão explícita do usuário (opção "substituir" escolhida entre as alternativas apresentadas): trocar a implementação de `CanalNotificacao` de `GmailNotificador` (Gmail API, OAuth2 com client id/secret/refresh token) para `NodemailerGmailNotificador` (biblioteca `nodemailer`, transport Gmail com usuário + senha de app), reaproveitando uma spec já validada em outro projeto (`api/specs/email-notification/`, incorporada em `api/specs/notificacoes-email/` e depois removida para não duplicar). Nenhuma das duas credenciais (OAuth2 ou senha de app) chegou a ser configurada em produção, então a troca não teve custo de migração de dado real:
+  - `src/infra/gateways/nodemailer-gmail-notificador.ts` — `NodemailerGmailNotificador`, implementa a porta `CanalNotificacao` (sem mudança na interface) via `nodemailer.createTransport({ service: "gmail", auth: { user, pass } })` + `transporter.sendMail({ from, to, subject, html })`; `gmail-notificador.ts` (implementação OAuth2) deletado sem shim
+  - `src/shared/config/env.ts` — `GMAIL_CLIENT_ID`/`GMAIL_CLIENT_SECRET`/`GMAIL_REFRESH_TOKEN` trocados por `GMAIL_USUARIO` (email) e `GMAIL_SENHA_APP`; `GMAIL_REMETENTE` mantido
+  - `src/infra/queue/use-cases-factory.ts` (`criarDispararLembreteInicialUseCase`, `criarDispararReguaAtrasoUseCase`) e `src/infra/http/routes/webhook-asaas.ts` — os 3 pontos de instanciação trocados de `new GmailNotificador({...})` para `new NodemailerGmailNotificador({...})`
+  - `.env.example`/`.env.test` — bloco Gmail atualizado para as 3 novas variáveis
+  - `package.json` — `googleapis` removido, `nodemailer` + `@types/nodemailer` adicionados
+  - `api/specs/notificacoes-email/{spec,rules,tasks}.md` — referências a Gmail API/OAuth2 (EMAIL-R-02, EMAIL-02, decisão técnica) reescritas para Nodemailer/senha de app
+- Testes: 3 unitários novos (`tests/unit/infra/gateways/nodemailer-gmail-notificador.test.ts`, mock de `nodemailer.createTransport`, cobrindo criação do transporter, envio com campos corretos e propagação de erro) — suíte completa do projeto em 118 testes, todos verdes. Nenhum teste existente precisou mudar: todos os testes de comportamento de e-mail (use cases, `MensagemNotificadorConfirmacao`) já passavam pela porta `CanalNotificacao` com fake (`FakeCanalNotificacao`), nunca pela implementação concreta.
+- Lint e typecheck (ambos tsconfigs) limpos; `npx prisma migrate status` sem pendências (nenhuma mudança de schema).
+- **Escopo explicitamente não alterado:** a porta `CanalNotificacao`, os templates (`template-email.ts`, `template-confirmacao.ts`, texto simples em `<p>`) e o fluxo de fallback (`enviarMensagemComFallback`) continuam os mesmos — a spec trazida pelo usuário também sugeria um template HTML elaborado (visual dourado/preto), mas isso foi propositalmente deixado de fora por estar fora do pedido (só o transporte SMTP mudou).
+- **Não feito ainda:** senha de app real do Gmail segue não configurada em `.env` (mesma situação de sempre com a credencial anterior, ver seção 6.1) — `NodemailerGmailNotificador` só foi validado contra mock/fake, nunca contra o Gmail real.
+
+### 2026-07-08 — Wiring dos jobs BullMQ (geração de cobrança + régua de mensagens) via TDD
+- Executa `api/specs/_geral/proximos-passos-jobs.md` de ponta a ponta: os use cases de negócio (Sprint 3) agora rodam de verdade em cron, não só via webhook HTTP. Duas decisões em aberto no documento foram resolvidas com o usuário antes de implementar: (1) `AsaasGateway` cria/busca customer no Asaas on-the-fly por `cpfCnpj`, sem novo campo em `Cliente`; (2) workers rodam no mesmo processo do Fastify, não em processo separado:
+  - `src/domain/cobranca/gateway-pagamento.ts` — `CriarCobrancaGatewayInput` ganhou `nomeCliente`, `documentoCliente`, `emailCliente` (necessários pro Asaas criar/buscar o customer)
+  - `src/infra/gateways/asaas-gateway.ts` — `AsaasGateway`, adapter HTTP direto (fetch, sem SDK, mesmo padrão de `EvolutionCanalMensagem`/`GmailNotificador`) contra `env.ASAAS_BASE_URL`: busca customer por `GET /customers?cpfCnpj=`, cria via `POST /customers` se não existir, depois `POST /payments` (header `access_token`, não `Authorization`, conforme a API real do Asaas)
+  - `src/application/cobranca/gerar-cobranca-use-case.ts` — `executar()` passou de `Promise<void>` para `Promise<Cobranca[]>`, retornando as cobranças efetivamente criadas nesta execução (necessário pro job saber pra quais cobranças disparar o lembrete inicial, sem reprocessar as pendentes de execuções anteriores)
+  - `src/infra/queue/redis-connection.ts` — `ConnectionOptions` do BullMQ a partir de `env.REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`
+  - `src/infra/queue/use-cases-factory.ts` — `criarGerarCobrancaUseCase`/`criarDispararLembreteInicialUseCase`/`criarDispararReguaAtrasoUseCase`, centraliza a instanciação dos use cases com adapters reais (Prisma + `AsaasGateway`/`EvolutionCanalMensagem`/`GmailNotificador`), mesmo padrão de instanciação já usado em `webhook-asaas.ts`
+  - `src/infra/queue/gerar-cobranca-job.ts` — `Queue`/`Worker`/`agendarGerarCobrancaJob` (via `queue.upsertJobScheduler`, cron `0 8 * * *`); o worker chama `GerarCobrancaUseCase.executar()` e, para cada `Cobranca` retornada, `DispararLembreteInicialUseCase.executar()`, isolando falha por cobrança (loga e segue, não derruba o worker)
+  - `src/infra/queue/disparar-regua-atraso-job.ts` — mesmo padrão, cron `0 9 * * *`, chama `DispararReguaAtrasoUseCase.executar(new Date())`
+  - `src/infra/queue/workers.ts` — `iniciarWorkers(logger)`, agenda os dois `JobScheduler`s e registra os workers com listener de `"failed"` pra log estruturado
+  - `src/infra/http/server.ts` — chama `iniciarWorkers(app.log)` após `app.listen` resolver (workers no mesmo processo do Fastify, decisão explícita do usuário)
+  - `src/shared/config/env.ts` — passou a chamar `dotenv.config()` (condicionado a `NODE_ENV !== "test"`); ver obstáculo abaixo
+  - `.env` — `ASAAS_API_KEY` estava comentada (`#ASAAS_API_KEY=...`) atrás de uma variável solta (`Wallet_ID=`) que não existe em `env.ts`; corrigido para `ASAAS_API_KEY=` descomentada com o valor já fornecido pelo usuário
+- Testes: 5 unitários novos de `AsaasGateway` (`tests/unit/infra/gateways/asaas-gateway.test.ts`, mock de `fetch`, cobrindo customer existente/novo e propagação de erro HTTP em cada etapa) + ajuste dos testes existentes de `GerarCobrancaUseCase` para o novo retorno — suíte completa do projeto em 115 testes, todos verdes.
+- Lint e typecheck (ambos tsconfigs) limpos; `npx prisma migrate status` sem pendências (nenhuma migration nova — decisão de customer on-the-fly evitou mexer no schema).
+- **Verificação end-to-end real (não só testes):** subiu `server.ts` de verdade contra o Postgres/Redis do `docker compose` local; `GET /health` respondeu OK e os dois `JobScheduler`s apareceram no Redis (`bull:gerar-cobranca:repeat*`, `bull:disparar-regua-atraso:repeat*`), confirmando que os crons foram agendados de verdade, não só que o código compila.
+- **Obstáculo de infra descoberto e corrigido durante a verificação:** `env.ts` nunca chamou `dotenv.config()` — sempre leu `process.env` cru. Os testes nunca sentiram isso porque `tests/setup-env.ts` já carrega `.env.test` via `dotenv` antes da suíte. Mas `npm run dev`/`npm start` sempre falhariam no boot fora do Vitest, mesmo com `.env` preenchido — só apareceu ao subir o servidor de verdade pela primeira vez neste projeto. Ver seção 6.7.
+- **`AsaasGateway` validado contra a sandbox real do Asaas** (não só mock de `fetch`), comparando com a documentação oficial (`docs.asaas.com/reference/comece-por-aqui`, `criar-novo-cliente`, `listar-clientes`, `criar-nova-cobranca`) e confirmando via `curl` direto contra `https://sandbox.asaas.com/api/v3`: header `access_token` correto; base URL do `.env` (`sandbox.asaas.com/api/v3`) é equivalente à documentada atualmente (`api-sandbox.asaas.com/v3`, mesmo backend, ambas responderam 200 aos mesmos testes) — não precisou trocar; `GET /customers?cpfCnpj=` retorna `{ data: [...] }` como esperado; `POST /customers` retorna `{ id: "cus_..." }`; `POST /payments` com `billingType: "UNDEFINED"` retorna `{ id: "pay_...", invoiceUrl: "https://sandbox.asaas.com/i/..." }`. Fluxo completo (criar customer → criar cobrança) testado e os registros de teste removidos da sandbox depois (`DELETE /payments/:id`, `DELETE /customers/:id`). Nenhuma mudança de código foi necessária — a implementação já estava correta.
+- **Não feito ainda:** credenciais reais de Evolution API e Gmail seguem vazias em `.env` (mesma situação de sempre, ver seção 6.1); painel de erros no `dashboard` (MSG-05/COB-05, módulo não iniciado). Próximo passo natural: iniciar a Sprint 4 (dashboard) ou configurar credenciais reais de Evolution API/Gmail.
 
 ### 2026-07-08 — Sprint 3 (conclusão): módulo Notificações por E-mail (EMAIL) via TDD
 - Terceiro e último módulo da Sprint 3 (PAG → MSG → EMAIL). Fecha EMAIL-01 a EMAIL-05 (`api/specs/notificacoes-email/tasks.md`) e, com isso, fecha a Sprint 3 inteira — inclusive revisita PAG-04 (disparo real de confirmação, antes pendente) e mantém MSG-05 parcial (painel de erros ainda depende do `dashboard`, não iniciado):

@@ -3,8 +3,8 @@
 > Regras específicas deste módulo. Regras técnicas transversais (stack, DDD, pastas) estão em `api/specs/_geral/rules.md`.
 
 ## Decisão técnica
-- Envio via **Gmail API** (não SMTP simples), autenticado por OAuth2 — nunca usuário/senha em texto puro (EMAIL-R-02)
-- Canal de notificação abstraído atrás de uma porta própria `CanalNotificacao`; `GmailNotificador` é a implementação — mesmo princípio de isolamento usado no gateway de pagamento
+- Envio via **Nodemailer** com transport Gmail, autenticado por usuário + senha de app do Google (EMAIL-R-02) — trocado de Gmail API/OAuth2 por simplicidade de configuração (sem fluxo OAuth2/console GCP)
+- Canal de notificação abstraído atrás de uma porta própria `CanalNotificacao`; `NodemailerGmailNotificador` é a implementação — mesmo princípio de isolamento usado no gateway de pagamento
 - Mesmo template usado no WhatsApp serve de base para o e-mail, adaptado pro formato HTML
 
 ## Invariantes do domínio

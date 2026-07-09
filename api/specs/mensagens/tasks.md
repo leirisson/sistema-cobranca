@@ -8,6 +8,9 @@
 
 ## Não feito ainda
 
-- Job BullMQ que chama `DispararReguaAtrasoUseCase.executar()` num cron diário (mesma situação do job de `GerarCobrancaUseCase`, ainda não agendado)
-- Wiring de `DispararLembreteInicialUseCase` a partir de `GerarCobrancaUseCase` (use case pronto e testado isoladamente, chamada explícita fica para quando o job cron for implementado)
 - Painel de erros no `dashboard` (MSG-05, depende do módulo `dashboard`, não iniciado)
+
+## Feito nesta etapa (wiring dos jobs)
+
+- Job BullMQ que chama `DispararReguaAtrasoUseCase.executar()` num cron diário (`src/infra/queue/disparar-regua-atraso-job.ts`, `0 9 * * *`, mesmo processo do Fastify)
+- Wiring de `DispararLembreteInicialUseCase` a partir do job de `GerarCobrancaUseCase` (`src/infra/queue/gerar-cobranca-job.ts`): após gerar as cobranças do dia, dispara o lembrete inicial pra cada uma, isolando falha por cobrança (loga e continua, não derruba o worker)

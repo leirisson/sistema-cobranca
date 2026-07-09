@@ -1,4 +1,9 @@
+import { config } from "dotenv";
 import { z } from "zod";
+
+if (process.env.NODE_ENV !== "test") {
+  config();
+}
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -18,9 +23,8 @@ const envSchema = z.object({
   EVOLUTION_API_KEY: z.string(),
   EVOLUTION_INSTANCE: z.string(),
 
-  GMAIL_CLIENT_ID: z.string(),
-  GMAIL_CLIENT_SECRET: z.string(),
-  GMAIL_REFRESH_TOKEN: z.string(),
+  GMAIL_USUARIO: z.string().email(),
+  GMAIL_SENHA_APP: z.string(),
   GMAIL_REMETENTE: z.string().email(),
 
   COBRANCA_ANTECEDENCIA_DIAS: z.coerce.number().int().positive().default(5),
