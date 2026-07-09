@@ -50,4 +50,10 @@ describe("montarEmailMensagem", () => {
 
     expect(email.corpoHtml).not.toContain("Pix");
   });
+
+  it("inclui o nome do remetente no corpo quando informado", () => {
+    const email = montarEmailMensagem("LEMBRETE", { ...dadosBase(), nomeRemetente: "Minha Empresa" });
+
+    expect(email.corpoHtml).toContain("Minha Empresa");
+  });
 });

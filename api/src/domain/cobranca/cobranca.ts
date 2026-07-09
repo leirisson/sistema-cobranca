@@ -4,6 +4,7 @@ import { z } from "zod";
 import { CobrancaInvalidaError } from "./cobranca-invalida-error.js";
 
 export type StatusCobranca = "PENDENTE" | "PAGO" | "ATRASADO" | "CANCELADO";
+export type OrigemCobranca = "RECORRENTE" | "AVULSA";
 
 const propsSchema = z.object({
   clienteId: z.string().trim().min(1, "clienteId não pode ser vazio"),
@@ -12,6 +13,8 @@ const propsSchema = z.object({
   gatewayChargeId: z.string().trim().min(1, "gatewayChargeId não pode ser vazio"),
   linkPagamento: z.string().trim().min(1, "linkPagamento não pode ser vazio"),
   pixCopiaECola: z.string().trim().min(1).nullish(),
+  origem: z.enum(["RECORRENTE", "AVULSA"]).default("RECORRENTE"),
+  descricao: z.string().trim().min(1).nullish(),
 });
 
 export interface CobrancaProps {
@@ -21,6 +24,8 @@ export interface CobrancaProps {
   gatewayChargeId: string;
   linkPagamento: string;
   pixCopiaECola?: string | null;
+  origem?: OrigemCobranca;
+  descricao?: string | null;
 }
 
 export interface CobrancaRestauracao extends CobrancaProps {
@@ -40,6 +45,8 @@ export class Cobranca {
   private readonly _gatewayChargeId: string;
   private readonly _linkPagamento: string;
   private readonly _pixCopiaECola: string | null;
+  private readonly _origem: OrigemCobranca;
+  private readonly _descricao: string | null;
   private _paidAt: Date | null;
   readonly createdAt: Date;
   private _updatedAt: Date;
@@ -60,6 +67,8 @@ export class Cobranca {
     this._gatewayChargeId = props.gatewayChargeId;
     this._linkPagamento = props.linkPagamento;
     this._pixCopiaECola = props.pixCopiaECola ?? null;
+    this._origem = props.origem ?? "RECORRENTE";
+    this._descricao = props.descricao ?? null;
     this._paidAt = paidAt;
     this.createdAt = createdAt;
     this._updatedAt = updatedAt;
@@ -141,6 +150,14 @@ export class Cobranca {
 
   get pixCopiaECola(): string | null {
     return this._pixCopiaECola;
+  }
+
+  get origem(): OrigemCobranca {
+    return this._origem;
+  }
+
+  get descricao(): string | null {
+    return this._descricao;
   }
 
   get paidAt(): Date | null {

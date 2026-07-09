@@ -144,9 +144,23 @@ mensagens              (MSG)   → depende de COB
 pagamentos             (PAG)   → depende de COB, MSG (+ EMAIL para confirmação)
         ↓
 dashboard              (DASH)  → depende de CAD, COB, PAG
+        ↓
+contrato-api           (API)   → documenta CAD, COB, MSG, EMAIL, PAG, DASH
+        ↓
+onboarding             (ONB)   → depende de CAD, MSG, EMAIL, PAG
+        ↓
+cobranca-avulsa        (AVULSA) → depende de COB, MSG
+        ↓
+        ├── cancelamento-cobranca (CANC)    → depende de COB, DASH
+        ├── reenvio-mensagem      (REENVIO) → depende de MSG, DASH
+        ↓
+        ├── seguranca-api (SEC)  → transversal (todas as rotas)
+        ├── lgpd          (LGPD) → depende de CAD
+        ↓
+observabilidade        (OBS)   → depende de COB, MSG
 ```
 
-| Módulo | ID | Sprint (referência: sprints-mvp-v1.md) |
+| Módulo | ID | Sprint (referência: `api/sprints/README.md`) |
 |---|---|---|
 | clientes | CAD | Sprint 1 |
 | cobrancas | COB | Sprint 2 |
@@ -154,3 +168,11 @@ dashboard              (DASH)  → depende de CAD, COB, PAG
 | notificacoes-email | EMAIL | Sprint 3 |
 | pagamentos | PAG | Sprint 3 |
 | dashboard | DASH | Sprint 4 |
+| contrato-api | API | Sprint 5 |
+| onboarding | ONB | Sprint 6 |
+| cobranca-avulsa | AVULSA | Sprint 7 |
+| cancelamento-cobranca | CANC | Sprint 8 |
+| reenvio-mensagem | REENVIO | Sprint 8 |
+| seguranca-api | SEC | Sprint 9 |
+| lgpd | LGPD | Sprint 9 |
+| observabilidade | OBS | Sprint 10 |

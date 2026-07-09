@@ -6,6 +6,7 @@ import { MensagemNotificadorConfirmacao } from "../../../../src/infra/notificaco
 import { FakeCanalMensagem } from "../../fakes/fake-canal-mensagem.js";
 import { FakeCanalNotificacao } from "../../fakes/fake-canal-notificacao.js";
 import { FakeClienteRepository } from "../../fakes/fake-cliente-repository.js";
+import { FakeConfiguracaoRepository } from "../../fakes/fake-configuracao-repository.js";
 import { FakeMensagemEnviadaRepository } from "../../fakes/fake-mensagem-enviada-repository.js";
 
 function criarCliente(email: string | null = "maria@example.com") {
@@ -36,6 +37,7 @@ describe("MensagemNotificadorConfirmacao", () => {
   let mensagemRepository: FakeMensagemEnviadaRepository;
   let canalMensagem: FakeCanalMensagem;
   let canalNotificacao: FakeCanalNotificacao;
+  let configuracaoRepository: FakeConfiguracaoRepository;
   let notificador: MensagemNotificadorConfirmacao;
 
   beforeEach(() => {
@@ -43,11 +45,13 @@ describe("MensagemNotificadorConfirmacao", () => {
     mensagemRepository = new FakeMensagemEnviadaRepository();
     canalMensagem = new FakeCanalMensagem();
     canalNotificacao = new FakeCanalNotificacao();
+    configuracaoRepository = new FakeConfiguracaoRepository();
     notificador = new MensagemNotificadorConfirmacao(
       clienteRepository,
       mensagemRepository,
       canalMensagem,
       canalNotificacao,
+      configuracaoRepository,
     );
   });
 
@@ -94,5 +98,18 @@ describe("MensagemNotificadorConfirmacao", () => {
     expect(canalNotificacao.chamadas).toHaveLength(0);
     expect(mensagemRepository.mensagens).toHaveLength(1);
     expect(mensagemRepository.mensagens[0]?.canal).toBe("whatsapp");
+  });
+
+  it("inclui o nome do remetente configurado na confirmação", async () => {
+    const cliente = criarCliente();
+    await clienteRepository.salvar(cliente);
+    const configuracao = await configuracaoRepository.buscar();
+    configuracao.atualizarNomeRemetente("Minha Empresa");
+    await configuracaoRepository.salvar(configuracao);
+    const cobranca = criarCobranca(cliente.id);
+
+    await notificador.notificarPagamentoConfirmado(cobranca);
+
+    expect(canalMensagem.chamadas[0]?.texto).toContain("Minha Empresa");
   });
 });

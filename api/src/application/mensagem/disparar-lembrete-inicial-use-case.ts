@@ -3,6 +3,7 @@ import type { CanalNotificacao } from "../../domain/mensagem/canal-notificacao.j
 import type { ClienteRepository } from "../../domain/cliente/cliente-repository.js";
 import { ClienteNaoEncontradoError } from "../../domain/cliente/cliente-nao-encontrado-error.js";
 import type { Cobranca } from "../../domain/cobranca/cobranca.js";
+import type { ConfiguracaoRepository } from "../../domain/configuracao/configuracao-repository.js";
 import { MensagemEnviada } from "../../domain/mensagem/mensagem-enviada.js";
 import type { MensagemEnviadaRepository } from "../../domain/mensagem/mensagem-enviada-repository.js";
 import { montarEmailMensagem } from "../../domain/mensagem/template-email.js";
@@ -15,6 +16,7 @@ export class DispararLembreteInicialUseCase {
     private readonly mensagemEnviadaRepository: MensagemEnviadaRepository,
     private readonly canalMensagem: CanalMensagem,
     private readonly canalNotificacao: CanalNotificacao,
+    private readonly configuracaoRepository: ConfiguracaoRepository,
   ) {}
 
   async executar(cobranca: Cobranca): Promise<void> {
@@ -30,12 +32,15 @@ export class DispararLembreteInicialUseCase {
       throw new ClienteNaoEncontradoError(cobranca.clienteId);
     }
 
+    const configuracao = await this.configuracaoRepository.buscar();
+
     const texto = montarTextoMensagem("LEMBRETE", {
       nomeCliente: cliente.nome,
       valor: cobranca.valor,
       vencimento: cobranca.vencimento,
       linkPagamento: cobranca.linkPagamento,
       pixCopiaECola: cobranca.pixCopiaECola,
+      nomeRemetente: configuracao.nomeRemetente,
     });
 
     const email = montarEmailMensagem("LEMBRETE", {
@@ -44,6 +49,7 @@ export class DispararLembreteInicialUseCase {
       vencimento: cobranca.vencimento,
       linkPagamento: cobranca.linkPagamento,
       pixCopiaECola: cobranca.pixCopiaECola,
+      nomeRemetente: configuracao.nomeRemetente,
     });
 
     const resultados = await enviarMensagemMultiplosCanais(this.canalMensagem, this.canalNotificacao, {

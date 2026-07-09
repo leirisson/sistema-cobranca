@@ -29,6 +29,13 @@ const envSchema = z.object({
 
   COBRANCA_ANTECEDENCIA_DIAS: z.coerce.number().int().positive().default(5),
   CONFIRMACAO_PAGAMENTO_HABILITADA: z.coerce.boolean().default(false),
+
+  JWT_SECRET: z.string().min(1),
+  JWT_EXPIRES_IN: z.string().default("7d"),
+
+  CONFIG_ENCRYPTION_KEY: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/i, "CONFIG_ENCRYPTION_KEY deve ter 64 caracteres hex (32 bytes)"),
 });
 
 export type Env = z.infer<typeof envSchema>;

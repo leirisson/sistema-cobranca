@@ -7,6 +7,7 @@ import { FakeCanalMensagem } from "../../fakes/fake-canal-mensagem.js";
 import { FakeCanalNotificacao } from "../../fakes/fake-canal-notificacao.js";
 import { FakeClienteRepository } from "../../fakes/fake-cliente-repository.js";
 import { FakeCobrancaRepository } from "../../fakes/fake-cobranca-repository.js";
+import { FakeConfiguracaoRepository } from "../../fakes/fake-configuracao-repository.js";
 import { FakeMensagemEnviadaRepository } from "../../fakes/fake-mensagem-enviada-repository.js";
 
 function criarCliente() {
@@ -35,6 +36,7 @@ describe("DispararReguaAtrasoUseCase", () => {
   let mensagemRepository: FakeMensagemEnviadaRepository;
   let canalMensagem: FakeCanalMensagem;
   let canalNotificacao: FakeCanalNotificacao;
+  let configuracaoRepository: FakeConfiguracaoRepository;
   let useCase: DispararReguaAtrasoUseCase;
   let cliente: Cliente;
 
@@ -44,12 +46,14 @@ describe("DispararReguaAtrasoUseCase", () => {
     mensagemRepository = new FakeMensagemEnviadaRepository();
     canalMensagem = new FakeCanalMensagem();
     canalNotificacao = new FakeCanalNotificacao();
+    configuracaoRepository = new FakeConfiguracaoRepository();
     useCase = new DispararReguaAtrasoUseCase(
       clienteRepository,
       cobrancaRepository,
       mensagemRepository,
       canalMensagem,
       canalNotificacao,
+      configuracaoRepository,
     );
     cliente = criarCliente();
     await clienteRepository.salvar(cliente);
@@ -185,5 +189,17 @@ describe("DispararReguaAtrasoUseCase", () => {
     expect(mensagemRepository.mensagens.map((m) => m.canal)).toEqual(
       expect.arrayContaining(["whatsapp", "email"]),
     );
+  });
+
+  it("inclui o nome do remetente configurado na mensagem enviada", async () => {
+    const configuracao = await configuracaoRepository.buscar();
+    configuracao.atualizarNomeRemetente("Minha Empresa");
+    await configuracaoRepository.salvar(configuracao);
+    const cobranca = criarCobranca(cliente.id, new Date("2026-08-10"));
+    await cobrancaRepository.salvar(cobranca);
+
+    await useCase.executar(new Date("2026-08-10"));
+
+    expect(canalMensagem.chamadas[0]?.texto).toContain("Minha Empresa");
   });
 });

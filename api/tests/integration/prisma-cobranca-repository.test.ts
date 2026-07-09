@@ -108,4 +108,34 @@ describe("PrismaCobrancaRepository", () => {
 
     expect(existe).toBe(false);
   });
+
+  it("persiste e restaura origem RECORRENTE por padrão (AVULSA-R-05)", async () => {
+    const cliente = await criarClienteSalvo();
+    const cobranca = criarCobranca(cliente.id, new Date("2026-08-10"));
+
+    await repository.salvar(cobranca);
+    const encontrada = await repository.buscarPorId(cobranca.id);
+
+    expect(encontrada?.origem).toBe("RECORRENTE");
+    expect(encontrada?.descricao).toBeNull();
+  });
+
+  it("persiste e restaura origem AVULSA com descrição (AVULSA-R-01)", async () => {
+    const cliente = await criarClienteSalvo();
+    const cobranca = Cobranca.criar({
+      clienteId: cliente.id,
+      valor: 300,
+      vencimento: new Date("2026-08-15"),
+      gatewayChargeId: "asaas_avulsa_1",
+      linkPagamento: "https://sandbox.asaas.com/i/asaas_avulsa_1",
+      origem: "AVULSA",
+      descricao: "Serviço extra - troca de peça",
+    });
+
+    await repository.salvar(cobranca);
+    const encontrada = await repository.buscarPorId(cobranca.id);
+
+    expect(encontrada?.origem).toBe("AVULSA");
+    expect(encontrada?.descricao).toBe("Serviço extra - troca de peça");
+  });
 });

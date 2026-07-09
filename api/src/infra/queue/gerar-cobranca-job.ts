@@ -23,7 +23,7 @@ export function criarGerarCobrancaWorker(logger: FastifyBaseLogger): Worker {
   return new Worker(
     GERAR_COBRANCA_QUEUE_NAME,
     async (_job: Job) => {
-      const gerarCobrancaUseCase = criarGerarCobrancaUseCase();
+      const gerarCobrancaUseCase = await criarGerarCobrancaUseCase();
       const dispararLembreteInicialUseCase = criarDispararLembreteInicialUseCase();
 
       const cobrancasGeradas = await gerarCobrancaUseCase.executar(new Date());

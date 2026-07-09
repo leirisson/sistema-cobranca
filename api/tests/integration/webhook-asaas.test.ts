@@ -4,14 +4,18 @@ import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/infra/http/app.js";
 import { Cliente } from "../../src/domain/cliente/cliente.js";
 import { Cobranca } from "../../src/domain/cobranca/cobranca.js";
+import { JwtGeradorToken } from "../../src/infra/auth/jwt-gerador-token.js";
 import { prisma } from "../../src/infra/database/prisma-client.js";
 import { PrismaClienteRepository } from "../../src/infra/database/prisma-cliente-repository.js";
 import { PrismaCobrancaRepository } from "../../src/infra/database/prisma-cobranca-repository.js";
+import { env } from "../../src/shared/config/env.js";
 
 describe("POST /webhooks/asaas", () => {
   let app: FastifyInstance;
   const clienteRepository = new PrismaClienteRepository(prisma);
   const cobrancaRepository = new PrismaCobrancaRepository(prisma);
+  const geradorToken = new JwtGeradorToken({ secret: env.JWT_SECRET, expiresIn: env.JWT_EXPIRES_IN });
+  const token = geradorToken.gerar({ sub: "usuario-teste", email: "dono@cobracerta.com" });
 
   beforeAll(async () => {
     await prisma.$connect();
@@ -94,5 +98,28 @@ describe("POST /webhooks/asaas", () => {
     });
 
     expect(response.statusCode).toBe(200);
+  });
+
+  it("respeita o toggle de confirmação salvo via PUT /configuracoes, sem precisar reiniciar o processo (ONB-R-05)", async () => {
+    await app.inject({
+      method: "PUT",
+      url: "/configuracoes",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { confirmacaoPagamentoHabilitada: true },
+    });
+
+    const cobranca = await criarCobrancaPendente("asaas_toggle_dinamico");
+
+    await app.inject({
+      method: "POST",
+      url: "/webhooks/asaas",
+      headers: { "asaas-access-token": "test-token" },
+      payload: { event: "PAYMENT_RECEIVED", payment: { id: "asaas_toggle_dinamico" } },
+    });
+
+    const mensagens = await prisma.mensagemEnviada.findMany({ where: { cobrancaId: cobranca.id } });
+    expect(mensagens.some((mensagem) => mensagem.tipo === "CONFIRMACAO")).toBe(true);
+
+    await prisma.configuracao.deleteMany();
   });
 });

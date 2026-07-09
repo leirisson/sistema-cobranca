@@ -35,7 +35,7 @@ describe("ListarCobrancasDashboardUseCase", () => {
 
   it("retorna itens e totais calculados (DASH-R-03)", async () => {
     query.itens = [
-      { id: "c1", nomeCliente: "Maria Silva", valor: 150, vencimento: new Date("2026-07-10"), status: "PAGO" },
+      { id: "c1", nomeCliente: "Maria Silva", valor: 150, vencimento: new Date("2026-07-10"), status: "PAGO", origem: "RECORRENTE" },
     ];
     query.totais = { totalAReceber: 0, totalRecebido: 150, totalEmAtraso: 0 };
 

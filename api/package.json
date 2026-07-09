@@ -16,13 +16,16 @@
     "lint": "eslint .",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "seed:usuario": "tsx src/infra/database/seed-usuario.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
+    "bcryptjs": "^3.0.3",
     "bullmq": "^5.34.0",
     "fastify": "^5.2.0",
     "ioredis": "^5.4.1",
+    "jsonwebtoken": "^9.0.3",
     "nodemailer": "^9.0.3",
     "pino": "^9.6.0",
     "pino-pretty": "^13.0.0",
@@ -30,6 +33,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.10.5",
     "@types/nodemailer": "^8.0.1",
     "@vitest/coverage-v8": "^2.1.8",

@@ -5,4 +5,5 @@ export interface ClienteRepository {
   buscarPorId(id: string): Promise<Cliente | null>;
   buscarPorNome(nome: string): Promise<Cliente[]>;
   listarAtivos(): Promise<Cliente[]>;
+  listarTodos(): Promise<Cliente[]>;
 }

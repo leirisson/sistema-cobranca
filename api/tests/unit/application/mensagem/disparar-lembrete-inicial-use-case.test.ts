@@ -6,6 +6,7 @@ import { Cobranca } from "../../../../src/domain/cobranca/cobranca.js";
 import { FakeCanalMensagem } from "../../fakes/fake-canal-mensagem.js";
 import { FakeCanalNotificacao } from "../../fakes/fake-canal-notificacao.js";
 import { FakeClienteRepository } from "../../fakes/fake-cliente-repository.js";
+import { FakeConfiguracaoRepository } from "../../fakes/fake-configuracao-repository.js";
 import { FakeMensagemEnviadaRepository } from "../../fakes/fake-mensagem-enviada-repository.js";
 
 function criarCliente(telefone = "+5511999998888", email?: string | null) {
@@ -34,6 +35,7 @@ describe("DispararLembreteInicialUseCase", () => {
   let mensagemRepository: FakeMensagemEnviadaRepository;
   let canalMensagem: FakeCanalMensagem;
   let canalNotificacao: FakeCanalNotificacao;
+  let configuracaoRepository: FakeConfiguracaoRepository;
   let useCase: DispararLembreteInicialUseCase;
 
   beforeEach(() => {
@@ -41,11 +43,13 @@ describe("DispararLembreteInicialUseCase", () => {
     mensagemRepository = new FakeMensagemEnviadaRepository();
     canalMensagem = new FakeCanalMensagem();
     canalNotificacao = new FakeCanalNotificacao();
+    configuracaoRepository = new FakeConfiguracaoRepository();
     useCase = new DispararLembreteInicialUseCase(
       clienteRepository,
       mensagemRepository,
       canalMensagem,
       canalNotificacao,
+      configuracaoRepository,
     );
   });
 
@@ -150,5 +154,18 @@ describe("DispararLembreteInicialUseCase", () => {
     expect(canalNotificacao.chamadas).toHaveLength(0);
     expect(mensagemRepository.mensagens).toHaveLength(1);
     expect(mensagemRepository.mensagens[0]?.canal).toBe("whatsapp");
+  });
+
+  it("inclui o nome do remetente configurado na mensagem enviada", async () => {
+    const cliente = criarCliente();
+    await clienteRepository.salvar(cliente);
+    const configuracao = await configuracaoRepository.buscar();
+    configuracao.atualizarNomeRemetente("Minha Empresa");
+    await configuracaoRepository.salvar(configuracao);
+    const cobranca = criarCobranca(cliente.id);
+
+    await useCase.executar(cobranca);
+
+    expect(canalMensagem.chamadas[0]?.texto).toContain("Minha Empresa");
   });
 });

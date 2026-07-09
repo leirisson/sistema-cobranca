@@ -39,6 +39,35 @@ enum CanalNotificacao {
   @@map("canal_notificacao")
 }
 
+enum OrigemCobranca {
+  RECORRENTE
+  AVULSA
+
+  @@map("origem_cobranca")
+}
+
+model Usuario {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  senhaHash String   @map("senha_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("usuarios")
+}
+
+model Configuracao {
+  id                                       String   @id
+  asaasApiKeyCifrada                      String?  @map("asaas_api_key_cifrada")
+  nomeRemetente                            String?  @map("nome_remetente")
+  confirmacaoPagamentoHabilitada          Boolean  @default(false) @map("confirmacao_pagamento_habilitada")
+  confirmacaoPagamentoConfiguradaPeloUsuario Boolean @default(false) @map("confirmacao_pagamento_configurada_pelo_usuario")
+  createdAt                                DateTime @default(now()) @map("created_at")
+  updatedAt                                DateTime @updatedAt @map("updated_at")
+
+  @@map("configuracoes")
+}
+
 model Cliente {
   id                String         @id @default(uuid())
   nome              String
@@ -86,6 +115,8 @@ model Cobranca {
   gatewayChargeId  String?        @unique @map("gateway_charge_id")
   linkPagamento    String?        @map("link_pagamento")
   pixCopiaECola    String?        @map("pix_copia_e_cola")
+  origem           OrigemCobranca @default(RECORRENTE)
+  descricao        String?
   paidAt           DateTime?      @map("paid_at")
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")

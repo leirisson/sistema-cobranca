@@ -27,4 +27,8 @@ export class FakeClienteRepository implements ClienteRepository {
   async listarAtivos(): Promise<Cliente[]> {
     return this.clientes.filter((cliente) => cliente.status === "ATIVO");
   }
+
+  async listarTodos(): Promise<Cliente[]> {
+    return [...this.clientes];
+  }
 }

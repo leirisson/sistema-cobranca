@@ -50,4 +50,16 @@ describe("montarTextoMensagem", () => {
 
     expect(texto).not.toContain("Pix");
   });
+
+  it("inclui o nome do remetente ao final quando informado", () => {
+    const texto = montarTextoMensagem("LEMBRETE", { ...dadosBase(), nomeRemetente: "Minha Empresa" });
+
+    expect(texto).toContain("Minha Empresa");
+  });
+
+  it("não inclui assinatura quando o nome do remetente não é informado (regressão)", () => {
+    const texto = montarTextoMensagem("LEMBRETE", dadosBase());
+
+    expect(texto.endsWith(dadosBase().linkPagamento)).toBe(true);
+  });
 });

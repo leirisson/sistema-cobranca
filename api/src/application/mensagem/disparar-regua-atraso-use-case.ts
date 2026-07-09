@@ -1,5 +1,6 @@
 import type { ClienteRepository } from "../../domain/cliente/cliente-repository.js";
 import type { CobrancaRepository } from "../../domain/cobranca/cobranca-repository.js";
+import type { ConfiguracaoRepository } from "../../domain/configuracao/configuracao-repository.js";
 import type { CanalMensagem } from "../../domain/mensagem/canal-mensagem.js";
 import type { CanalNotificacao } from "../../domain/mensagem/canal-notificacao.js";
 import { MensagemEnviada } from "../../domain/mensagem/mensagem-enviada.js";
@@ -22,10 +23,12 @@ export class DispararReguaAtrasoUseCase {
     private readonly mensagemEnviadaRepository: MensagemEnviadaRepository,
     private readonly canalMensagem: CanalMensagem,
     private readonly canalNotificacao: CanalNotificacao,
+    private readonly configuracaoRepository: ConfiguracaoRepository,
   ) {}
 
   async executar(hoje: Date): Promise<void> {
     const cobrancas = await this.cobrancaRepository.listarPendentesOuAtrasadas();
+    const configuracao = await this.configuracaoRepository.buscar();
 
     for (const cobranca of cobrancas) {
       const diasDesdeVencimento = this.calcularDiasDesdeVencimento(hoje, cobranca.vencimento);
@@ -59,6 +62,7 @@ export class DispararReguaAtrasoUseCase {
         vencimento: cobranca.vencimento,
         linkPagamento: cobranca.linkPagamento,
         pixCopiaECola: cobranca.pixCopiaECola,
+        nomeRemetente: configuracao.nomeRemetente,
       });
 
       const email = montarEmailMensagem(tipo, {
@@ -67,6 +71,7 @@ export class DispararReguaAtrasoUseCase {
         vencimento: cobranca.vencimento,
         linkPagamento: cobranca.linkPagamento,
         pixCopiaECola: cobranca.pixCopiaECola,
+        nomeRemetente: configuracao.nomeRemetente,
       });
 
       const resultados = await enviarMensagemMultiplosCanais(this.canalMensagem, this.canalNotificacao, {

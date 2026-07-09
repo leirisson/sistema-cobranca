@@ -30,4 +30,18 @@ describe("montarEmailConfirmacao", () => {
     expect(email.corpoHtml).toContain("Maria Silva");
     expect(email.corpoHtml).toContain("150");
   });
+
+  it("inclui o nome do remetente no corpo quando informado", () => {
+    const email = montarEmailConfirmacao({ ...dadosBase(), nomeRemetente: "Minha Empresa" });
+
+    expect(email.corpoHtml).toContain("Minha Empresa");
+  });
+});
+
+describe("montarTextoConfirmacao com nomeRemetente", () => {
+  it("inclui o nome do remetente ao final quando informado", () => {
+    const texto = montarTextoConfirmacao({ ...dadosBase(), nomeRemetente: "Minha Empresa" });
+
+    expect(texto).toContain("Minha Empresa");
+  });
 });

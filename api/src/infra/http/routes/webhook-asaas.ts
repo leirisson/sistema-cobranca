@@ -1,10 +1,12 @@
 import type { FastifyInstance } from "fastify";
 
 import { ConfirmarPagamentoUseCase } from "../../../application/cobranca/confirmar-pagamento-use-case.js";
+import { resolverConfirmacaoHabilitada } from "../../../application/configuracao/resolver-confirmacao-habilitada.js";
 import { CobrancaNaoEncontradaError } from "../../../domain/cobranca/cobranca-nao-encontrada-error.js";
 import { env } from "../../../shared/config/env.js";
 import { PrismaClienteRepository } from "../../database/prisma-cliente-repository.js";
 import { PrismaCobrancaRepository } from "../../database/prisma-cobranca-repository.js";
+import { PrismaConfiguracaoRepository } from "../../database/prisma-configuracao-repository.js";
 import { PrismaMensagemEnviadaRepository } from "../../database/prisma-mensagem-enviada-repository.js";
 import { prisma } from "../../database/prisma-client.js";
 import { EvolutionCanalMensagem } from "../../gateways/evolution-canal-mensagem.js";
@@ -20,6 +22,7 @@ export async function webhookAsaasRoutes(app: FastifyInstance) {
   const cobrancaRepository = new PrismaCobrancaRepository(prisma);
   const clienteRepository = new PrismaClienteRepository(prisma);
   const mensagemEnviadaRepository = new PrismaMensagemEnviadaRepository(prisma);
+  const configuracaoRepository = new PrismaConfiguracaoRepository(prisma);
   const canalMensagem = new EvolutionCanalMensagem({
     baseUrl: env.EVOLUTION_API_URL,
     apiKey: env.EVOLUTION_API_KEY,
@@ -35,11 +38,7 @@ export async function webhookAsaasRoutes(app: FastifyInstance) {
     mensagemEnviadaRepository,
     canalMensagem,
     canalNotificacao,
-  );
-  const useCase = new ConfirmarPagamentoUseCase(
-    cobrancaRepository,
-    notificador,
-    env.CONFIRMACAO_PAGAMENTO_HABILITADA,
+    configuracaoRepository,
   );
 
   app.post<{ Body: WebhookAsaasPayload }>("/webhooks/asaas", async (request, reply) => {
@@ -50,6 +49,13 @@ export async function webhookAsaasRoutes(app: FastifyInstance) {
     }
 
     const { payment } = request.body;
+
+    const configuracao = await configuracaoRepository.buscar();
+    const confirmacaoHabilitada = resolverConfirmacaoHabilitada(
+      configuracao,
+      env.CONFIRMACAO_PAGAMENTO_HABILITADA,
+    );
+    const useCase = new ConfirmarPagamentoUseCase(cobrancaRepository, notificador, confirmacaoHabilitada);
 
     try {
       await useCase.executar({ gatewayChargeId: payment.id, paidAt: new Date() });

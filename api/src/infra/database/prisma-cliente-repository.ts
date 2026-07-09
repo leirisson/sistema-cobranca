@@ -90,6 +90,14 @@ export class PrismaClienteRepository implements ClienteRepository {
     return registros.map((registro) => this.paraEntidade(registro));
   }
 
+  async listarTodos(): Promise<Cliente[]> {
+    const registros = await this.prisma.cliente.findMany({
+      include: { telefones: true },
+    });
+
+    return registros.map((registro) => this.paraEntidade(registro));
+  }
+
   private paraEntidade(registro: ClienteComTelefones): Cliente {
     const temEndereco = registro.enderecoRua !== null && registro.enderecoCidade !== null && registro.enderecoUf !== null && registro.enderecoCep !== null;
 

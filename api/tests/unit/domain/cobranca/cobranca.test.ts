@@ -115,4 +115,22 @@ describe("Cobranca", () => {
 
     expect(cobranca.status).toBe("ATRASADO");
   });
+
+  it("assume origem RECORRENTE por padrão quando não informada (AVULSA-R-05)", () => {
+    const cobranca = Cobranca.criar(dadosValidos());
+
+    expect(cobranca.origem).toBe("RECORRENTE");
+    expect(cobranca.descricao).toBeNull();
+  });
+
+  it("aceita origem AVULSA com descrição opcional (AVULSA-R-01)", () => {
+    const cobranca = Cobranca.criar({
+      ...dadosValidos(),
+      origem: "AVULSA",
+      descricao: "Serviço extra - troca de peça",
+    });
+
+    expect(cobranca.origem).toBe("AVULSA");
+    expect(cobranca.descricao).toBe("Serviço extra - troca de peça");
+  });
 });
