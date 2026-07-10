@@ -1,2 +1,4 @@
 .claude
 graphify-out/
+.env
+.env.prod

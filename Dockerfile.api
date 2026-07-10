@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1
+# Build context: raiz do projeto (docker build -f Dockerfile.api .)
+
+FROM node:20-alpine AS base
+WORKDIR /app
+
+# --- deps: instala todas as dependências (inclui dev, necessárias para o build) ---
+FROM base AS deps
+COPY api/package.json api/package-lock.json ./
+COPY api/prisma ./prisma
+RUN npm ci
+
+# --- build: compila TypeScript e gera o Prisma Client ---
+FROM base AS build
+COPY --from=deps /app/node_modules ./node_modules
+COPY api .
+RUN npx prisma generate
+RUN npm run build
+
+# --- deps de produção: só dependências de runtime (sem devDependencies) ---
+FROM base AS prod-deps
+COPY api/package.json api/package-lock.json ./
+COPY api/prisma ./prisma
+RUN npm ci --omit=dev
+RUN npx prisma generate
+
+# --- runtime: imagem final, enxuta ---
+FROM base AS runtime
+ENV NODE_ENV=production
+RUN addgroup -S nodejs && adduser -S cobracerta -G nodejs
+
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY api/package.json ./
+COPY api/prisma ./prisma
+
+USER cobracerta
+EXPOSE 3000
+
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/infra/http/server.js"]

@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: api
+
+jobs:
+  backend:
+    name: Backend (lint, typecheck, testes)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cobracerta
+          POSTGRES_PASSWORD: cobracerta
+          POSTGRES_DB: cobracerta_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U cobracerta"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: api/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc -p tsconfig.test.json --noEmit
+
+      - name: Gerar Prisma Client
+        run: npx prisma generate
+
+      - name: Aplicar migrations no banco de teste
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://cobracerta:cobracerta@localhost:5433/cobracerta_test
+
+      - name: Rodar testes
+        run: npm test
+
+  frontend:
+    name: Frontend (lint, typecheck, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build

@@ -1,0 +1,32 @@
+# syntax=docker/dockerfile:1
+# Build context: raiz do projeto (docker build -f Dockerfile.front .)
+
+FROM node:20-alpine AS base
+WORKDIR /app
+
+# --- deps: instala dependências ---
+FROM base AS deps
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+# --- build: compila o Next.js (output standalone) ---
+FROM base AS build
+COPY --from=deps /app/node_modules ./node_modules
+COPY frontend .
+RUN npm run build
+
+# --- runtime: imagem final, só o necessário para rodar (server.js standalone) ---
+FROM base AS runtime
+ENV NODE_ENV=production
+RUN addgroup -S nodejs && adduser -S cobracerta -G nodejs
+
+COPY --from=build /app/public ./public
+COPY --from=build --chown=cobracerta:nodejs /app/.next/standalone ./
+COPY --from=build --chown=cobracerta:nodejs /app/.next/static ./.next/static
+
+USER cobracerta
+EXPOSE 3001
+ENV PORT=3001
+ENV HOSTNAME=0.0.0.0
+
+CMD ["node", "server.js"]
