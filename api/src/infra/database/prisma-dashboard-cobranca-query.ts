@@ -4,7 +4,9 @@ import type {
   CobrancaDashboardDetalhe,
   CobrancaDashboardItem,
   DashboardCobrancaQuery,
+  ErroGeracaoCobrancaDashboardItem,
   FiltroDashboardCobranca,
+  MensagemComFalhaDashboardItem,
   TotaisDashboard,
 } from "../../domain/cobranca/dashboard-cobranca-query.js";
 
@@ -78,6 +80,39 @@ export class PrismaDashboardCobrancaQuery implements DashboardCobrancaQuery {
         enviadoEm: mensagem.enviadoEm,
       })),
     };
+  }
+
+  async listarErrosGeracaoCobranca(limite: number): Promise<ErroGeracaoCobrancaDashboardItem[]> {
+    const registros = await this.prisma.erroGeracaoCobranca.findMany({
+      orderBy: { ocorridoEm: "desc" },
+      take: limite,
+    });
+
+    return registros.map((registro) => ({
+      id: registro.id,
+      clienteId: registro.clienteId,
+      nomeCliente: registro.nomeCliente,
+      mensagemErro: registro.mensagemErro,
+      ocorridoEm: registro.ocorridoEm,
+    }));
+  }
+
+  async listarMensagensComFalha(limite: number): Promise<MensagemComFalhaDashboardItem[]> {
+    const registros = await this.prisma.mensagemEnviada.findMany({
+      where: { statusEnvio: "FALHA" },
+      include: { cobranca: { include: { cliente: { select: { nome: true } } } } },
+      orderBy: { enviadoEm: "desc" },
+      take: limite,
+    });
+
+    return registros.map((registro) => ({
+      id: registro.id,
+      cobrancaId: registro.cobrancaId,
+      nomeCliente: registro.cobranca.cliente.nome,
+      tipo: registro.tipo,
+      canal: registro.canal,
+      enviadoEm: registro.enviadoEm,
+    }));
   }
 
   private montarWhere(filtro: FiltroDashboardCobranca): Prisma.CobrancaWhereInput {

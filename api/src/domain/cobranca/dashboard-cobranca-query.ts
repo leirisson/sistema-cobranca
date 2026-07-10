@@ -44,8 +44,27 @@ export interface CobrancaDashboardDetalhe {
   mensagens: MensagemEnviadaHistoricoItem[];
 }
 
+export interface ErroGeracaoCobrancaDashboardItem {
+  id: string;
+  clienteId: string;
+  nomeCliente: string;
+  mensagemErro: string;
+  ocorridoEm: Date;
+}
+
+export interface MensagemComFalhaDashboardItem {
+  id: string;
+  cobrancaId: string;
+  nomeCliente: string;
+  tipo: TipoMensagem;
+  canal: CanalNotificacaoTipo;
+  enviadoEm: Date;
+}
+
 export interface DashboardCobrancaQuery {
   listar(filtro: FiltroDashboardCobranca): Promise<CobrancaDashboardItem[]>;
   calcularTotais(filtro: Pick<FiltroDashboardCobranca, "mes" | "ano">): Promise<TotaisDashboard>;
   buscarDetalhe(id: string): Promise<CobrancaDashboardDetalhe | null>;
+  listarErrosGeracaoCobranca(limite: number): Promise<ErroGeracaoCobrancaDashboardItem[]>;
+  listarMensagensComFalha(limite: number): Promise<MensagemComFalhaDashboardItem[]>;
 }

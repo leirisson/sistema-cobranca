@@ -4,11 +4,11 @@
 - [x] MSG-02 — Implementar régua fixa (D0, D+1, D+3) via `DispararReguaAtrasoUseCase`
 - [x] MSG-03 — Implementar checagem de status antes do disparo (nunca envia para `PAGO`/`CANCELADO`, dedup via `MensagemEnviadaRepository.existeParaCobrancaETipo`)
 - [x] MSG-04 — Implementar entidade/tabela `MensagemEnviada`
-- [ ] MSG-05 — Configurar log estruturado + painel de erros (integração com `dashboard`)
+- [x] MSG-05 — `DashboardCobrancaQuery.listarMensagensComFalha` (`PrismaDashboardCobrancaQuery`, join com `Cobranca`/`Cliente` para trazer `nomeCliente`) filtra `MensagemEnviada` por `statusEnvio: "FALHA"`, reaproveitando a tabela já existente (sem migration nova). Exposto via `GET /dashboard/erros` (`BuscarErrosOperacionaisUseCase`), junto dos erros de geração de cobrança de COB-05 (`contrato-api/endpoints.md`). Cada item pode ser reenviado pelo endpoint já existente `POST /dashboard/cobrancas/:id/mensagens/:mensagemId/reenviar` (módulo REENVIO).
 
 ## Não feito ainda
 
-- Painel de erros no `dashboard` (MSG-05, depende do módulo `dashboard`, não iniciado)
+- Nenhuma pendência de escopo — MSG-01 a MSG-05 concluídas.
 
 ## Feito nesta etapa (wiring dos jobs)
 

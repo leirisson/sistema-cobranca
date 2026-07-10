@@ -8,12 +8,13 @@ export class FakeGatewayPagamento implements GatewayPagamento {
   chamadas: CriarCobrancaGatewayInput[] = [];
   cancelamentos: string[] = [];
   deveFalhar = false;
+  deveFalharPara: Set<string> = new Set();
   deveFalharAoCancelar = false;
 
   async criarCobranca(input: CriarCobrancaGatewayInput): Promise<CriarCobrancaGatewayOutput> {
     this.chamadas.push(input);
 
-    if (this.deveFalhar) {
+    if (this.deveFalhar || this.deveFalharPara.has(input.clienteId)) {
       throw new Error("Falha ao criar cobrança no gateway de pagamento");
     }
 

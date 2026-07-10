@@ -9,11 +9,13 @@ import { env } from "../../shared/config/env.js";
 import { PrismaClienteRepository } from "../database/prisma-cliente-repository.js";
 import { PrismaCobrancaRepository } from "../database/prisma-cobranca-repository.js";
 import { PrismaConfiguracaoRepository } from "../database/prisma-configuracao-repository.js";
+import { PrismaErroGeracaoCobrancaRepository } from "../database/prisma-erro-geracao-cobranca-repository.js";
 import { PrismaMensagemEnviadaRepository } from "../database/prisma-mensagem-enviada-repository.js";
 import { prisma } from "../database/prisma-client.js";
 import { AsaasGateway } from "../gateways/asaas-gateway.js";
 import { EvolutionCanalMensagem } from "../gateways/evolution-canal-mensagem.js";
 import { NodemailerGmailNotificador } from "../gateways/nodemailer-gmail-notificador.js";
+import { AlertaOperacionalService } from "../notificacoes/alerta-operacional-service.js";
 import { CifradorAes256Gcm } from "../security/cifrador-aes-256-gcm.js";
 
 async function resolverAsaasApiKey(): Promise<string> {
@@ -28,6 +30,7 @@ async function resolverAsaasApiKey(): Promise<string> {
 export async function criarGerarCobrancaUseCase(): Promise<GerarCobrancaUseCase> {
   const clienteRepository = new PrismaClienteRepository(prisma);
   const cobrancaRepository = new PrismaCobrancaRepository(prisma);
+  const erroGeracaoCobrancaRepository = new PrismaErroGeracaoCobrancaRepository(prisma);
   const gatewayPagamento = new AsaasGateway({
     baseUrl: env.ASAAS_BASE_URL,
     apiKey: await resolverAsaasApiKey(),
@@ -37,6 +40,7 @@ export async function criarGerarCobrancaUseCase(): Promise<GerarCobrancaUseCase>
     clienteRepository,
     cobrancaRepository,
     gatewayPagamento,
+    erroGeracaoCobrancaRepository,
     env.COBRANCA_ANTECEDENCIA_DIAS,
   );
 }
@@ -136,4 +140,19 @@ export function criarReenviarMensagemUseCase(): ReenviarMensagemUseCase {
     canalNotificacao,
     configuracaoRepository,
   );
+}
+
+export function criarAlertaOperacionalService(): AlertaOperacionalService {
+  const canalMensagem = new EvolutionCanalMensagem({
+    baseUrl: env.EVOLUTION_API_URL,
+    apiKey: env.EVOLUTION_API_KEY,
+    instance: env.EVOLUTION_INSTANCE,
+  });
+  const canalNotificacao = new NodemailerGmailNotificador({
+    usuario: env.ALERTA_GMAIL_USUARIO ?? env.GMAIL_USUARIO,
+    senhaApp: env.ALERTA_GMAIL_SENHA_APP ?? env.GMAIL_SENHA_APP,
+    remetente: env.ALERTA_GMAIL_REMETENTE ?? env.GMAIL_REMETENTE,
+  });
+
+  return new AlertaOperacionalService(canalMensagem, canalNotificacao, env.ALERTA_OPERACIONAL_DESTINO);
 }

@@ -180,6 +180,30 @@ browser: erro de CORS no console, sem resposta utilizável). Não se aplica ao w
 
 ---
 
+### `GET /dashboard/erros`
+- **Módulo:** COB (COB-05), MSG (MSG-05)
+- **Autenticação:** Protegida (JWT)
+- **Request:** nenhum param/query
+- **Response 200:**
+  ```json
+  {
+    "errosGeracaoCobranca": [
+      { "id": "uuid", "clienteId": "uuid", "nomeCliente": "string", "mensagemErro": "string", "ocorridoEm": "ISO-8601" }
+    ],
+    "mensagensComFalha": [
+      { "id": "uuid", "cobrancaId": "uuid", "nomeCliente": "string", "tipo": "LEMBRETE|VENCIMENTO|ATRASO|CONFIRMACAO", "canal": "whatsapp|email", "enviadoEm": "ISO-8601" }
+    ]
+  }
+  ```
+- **Semântica:** últimos 20 registros de cada lista (mais recentes primeiro). `errosGeracaoCobranca`
+  vem de `GerarCobrancaUseCase` isolando falha por cliente (não interrompe os demais, COB-R-03);
+  `mensagensComFalha` é a `MensagemEnviada` já existente filtrada por `statusEnvio: "FALHA"` — cada
+  item pode ser reenviado via `POST /dashboard/cobrancas/:id/mensagens/:mensagemId/reenviar`
+- **Erros:**
+  - `401` — sem token válido
+
+---
+
 ### `GET /clientes`
 - **Módulo:** CAD
 - **Autenticação:** Protegida (JWT)

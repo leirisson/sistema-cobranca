@@ -4,6 +4,7 @@ import type { FastifyBaseLogger } from "fastify";
 
 import { redisConnection } from "./redis-connection.js";
 import {
+  criarAlertaOperacionalService,
   criarDispararLembreteInicialUseCase,
   criarGerarCobrancaUseCase,
 } from "./use-cases-factory.js";
@@ -25,8 +26,9 @@ export function criarGerarCobrancaWorker(logger: FastifyBaseLogger): Worker {
     async (_job: Job) => {
       const gerarCobrancaUseCase = await criarGerarCobrancaUseCase();
       const dispararLembreteInicialUseCase = criarDispararLembreteInicialUseCase();
+      const alertaOperacionalService = criarAlertaOperacionalService();
 
-      const cobrancasGeradas = await gerarCobrancaUseCase.executar(new Date());
+      const { cobrancasGeradas, errosOcorridos } = await gerarCobrancaUseCase.executar(new Date());
 
       for (const cobranca of cobrancasGeradas) {
         try {
@@ -34,6 +36,21 @@ export function criarGerarCobrancaWorker(logger: FastifyBaseLogger): Worker {
         } catch (error) {
           logger.error({ err: error, cobrancaId: cobranca.id }, "Falha ao disparar lembrete inicial");
         }
+      }
+
+      if (errosOcorridos.length > 0) {
+        logger.error({ erros: errosOcorridos.length }, "Falha ao gerar cobrança para 1 ou mais clientes");
+
+        const resumo = errosOcorridos.map((erro) => `${erro.nomeCliente}: ${erro.mensagemErro}`).join("; ");
+
+        await alertaOperacionalService
+          .alertar({
+            job: "gerar-cobranca",
+            erro: new Error(`Falha ao gerar cobrança para ${errosOcorridos.length} cliente(s): ${resumo}`),
+          })
+          .catch((erroAlerta: unknown) => {
+            logger.error({ err: erroAlerta }, "Falha ao disparar alerta operacional");
+          });
       }
     },
     { connection: redisConnection },

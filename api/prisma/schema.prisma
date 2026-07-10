@@ -142,3 +142,14 @@ model MensagemEnviada {
   @@index([cobrancaId])
   @@map("mensagens_enviadas")
 }
+
+model ErroGeracaoCobranca {
+  id           String   @id @default(uuid())
+  clienteId    String   @map("cliente_id")
+  nomeCliente  String   @map("nome_cliente")
+  mensagemErro String   @map("mensagem_erro")
+  ocorridoEm   DateTime @default(now()) @map("ocorrido_em")
+
+  @@index([ocorridoEm])
+  @@map("erros_geracao_cobranca")
+}

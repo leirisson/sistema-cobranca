@@ -32,7 +32,7 @@ Os três módulos foram agrupados na mesma sprint porque são interdependentes (
 - [x] MSG-02 — Implementar régua fixa (D0, D+1, D+3)
 - [x] MSG-03 — Implementar checagem de status antes do disparo
 - [x] MSG-04 — Implementar entidade/tabela `MensagemEnviada`
-- [~] MSG-05 — Log estruturado via Pino (via try/catch nos use cases); painel de erros no `dashboard` pendente (módulo não iniciado)
+- [x] MSG-05 — Log estruturado via Pino (try/catch nos use cases) + painel de erros no `dashboard` (`GET /dashboard/erros`, `listarMensagensComFalha`); fechado na Sprint 10 (Observabilidade), junto de COB-05, ver `sprint-10-observabilidade.md`
 
 ## Tasks — Notificações por E-mail (EMAIL)
 
@@ -44,7 +44,7 @@ Os três módulos foram agrupados na mesma sprint porque são interdependentes (
 
 ## Critérios de conclusão da sprint
 
-- [x] Todas as tasks PAG-01 a PAG-04, MSG-01 a MSG-04 e EMAIL-01 a EMAIL-05 concluídas (MSG-05 parcial — painel de erros fica pro módulo `dashboard`, ainda não iniciado)
+- [x] Todas as tasks PAG-01 a PAG-04, MSG-01 a MSG-05 e EMAIL-01 a EMAIL-05 concluídas
 - [x] Máquina de estados de `Cobranca` impede transição inválida (ex: paga → pendente)
 - [x] Webhook do Asaas validado por token antes de processar (`ASAAS_WEBHOOK_TOKEN`)
 - [x] Régua fixa (lembrete, vencimento, D+1, D+3) disparando nos prazos corretos em teste de integração

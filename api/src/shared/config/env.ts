@@ -38,6 +38,11 @@ const envSchema = z.object({
     .regex(/^[0-9a-f]{64}$/i, "CONFIG_ENCRYPTION_KEY deve ter 64 caracteres hex (32 bytes)"),
 
   CORS_ALLOWED_ORIGINS: z.string().min(1),
+
+  ALERTA_OPERACIONAL_DESTINO: z.string().optional(),
+  ALERTA_GMAIL_USUARIO: z.string().email().optional(),
+  ALERTA_GMAIL_SENHA_APP: z.string().optional(),
+  ALERTA_GMAIL_REMETENTE: z.string().email().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

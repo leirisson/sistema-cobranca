@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 
 import { BuscarDetalheCobrancaUseCase } from "../../../application/cobranca/buscar-detalhe-cobranca-use-case.js";
+import { BuscarErrosOperacionaisUseCase } from "../../../application/cobranca/buscar-erros-operacionais-use-case.js";
 import { ListarCobrancasDashboardUseCase } from "../../../application/cobranca/listar-cobrancas-dashboard-use-case.js";
 import type { StatusCobranca } from "../../../domain/cobranca/cobranca.js";
 import { CobrancaInvalidaError } from "../../../domain/cobranca/cobranca-invalida-error.js";
@@ -25,6 +26,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
   const dashboardCobrancaQuery = new PrismaDashboardCobrancaQuery(prisma);
   const useCase = new ListarCobrancasDashboardUseCase(dashboardCobrancaQuery);
   const buscarDetalheUseCase = new BuscarDetalheCobrancaUseCase(dashboardCobrancaQuery);
+  const buscarErrosOperacionaisUseCase = new BuscarErrosOperacionaisUseCase(dashboardCobrancaQuery);
 
   app.addHook("preHandler", autenticar);
 
@@ -41,6 +43,12 @@ export async function dashboardRoutes(app: FastifyInstance) {
       mes: mes ? Number(mes) : undefined,
       ano: ano ? Number(ano) : undefined,
     });
+
+    return reply.status(200).send(resultado);
+  });
+
+  app.get("/dashboard/erros", async (_request, reply) => {
+    const resultado = await buscarErrosOperacionaisUseCase.executar();
 
     return reply.status(200).send(resultado);
   });

@@ -453,3 +453,99 @@ describe("POST /dashboard/cobrancas/:id/mensagens/:mensagemId/reenviar", () => {
     expect(mensagemFalha.statusEnvio).toBe("FALHA");
   });
 });
+
+describe("GET /dashboard/erros", () => {
+  let app: FastifyInstance;
+  const clienteRepository = new PrismaClienteRepository(prisma);
+  const cobrancaRepository = new PrismaCobrancaRepository(prisma);
+  const geradorToken = new JwtGeradorToken({ secret: env.JWT_SECRET, expiresIn: env.JWT_EXPIRES_IN });
+  const token = geradorToken.gerar({ sub: "usuario-teste", email: "dono@cobracerta.com" });
+  const authHeader = { authorization: `Bearer ${token}` };
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    app = buildApp();
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await prisma.erroGeracaoCobranca.deleteMany();
+    await prisma.mensagemEnviada.deleteMany();
+    await prisma.cobranca.deleteMany();
+    await prisma.telefoneCliente.deleteMany();
+    await prisma.cliente.deleteMany();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await prisma.$disconnect();
+  });
+
+  it("rejeita requisição sem token com 401 (AUTH-04)", async () => {
+    const response = await app.inject({ method: "GET", url: "/dashboard/erros" });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("expõe erros de geração de cobrança e mensagens com FALHA (COB-05, MSG-05)", async () => {
+    await prisma.erroGeracaoCobranca.create({
+      data: {
+        id: "erro-1",
+        clienteId: "cliente-inexistente",
+        nomeCliente: "Maria Silva",
+        mensagemErro: "Falha ao criar cobrança no Asaas: timeout",
+      },
+    });
+
+    const cliente = Cliente.criar({
+      nome: "João Souza",
+      documento: "12345678900",
+      telefones: [{ numero: "+5511999998888", principal: true }],
+      valorCobranca: 150,
+      diaVencimento: 10,
+    });
+    await clienteRepository.salvar(cliente);
+
+    const cobranca = Cobranca.criar({
+      clienteId: cliente.id,
+      valor: 150,
+      vencimento: new Date("2026-07-10"),
+      gatewayChargeId: `asaas_${cliente.id}`,
+      linkPagamento: `https://sandbox.asaas.com/i/asaas_${cliente.id}`,
+    });
+    await cobrancaRepository.salvar(cobranca);
+
+    const mensagemFalha = MensagemEnviada.criar({
+      cobrancaId: cobranca.id,
+      tipo: "LEMBRETE",
+      statusEnvio: "FALHA",
+      canal: "whatsapp",
+    });
+    await new PrismaMensagemEnviadaRepository(prisma).salvar(mensagemFalha);
+
+    const response = await app.inject({ method: "GET", url: "/dashboard/erros", headers: authHeader });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.errosGeracaoCobranca).toHaveLength(1);
+    expect(body.errosGeracaoCobranca[0]).toMatchObject({
+      nomeCliente: "Maria Silva",
+      mensagemErro: "Falha ao criar cobrança no Asaas: timeout",
+    });
+    expect(body.mensagensComFalha).toHaveLength(1);
+    expect(body.mensagensComFalha[0]).toMatchObject({
+      nomeCliente: "João Souza",
+      tipo: "LEMBRETE",
+      canal: "whatsapp",
+    });
+  });
+
+  it("devolve listas vazias quando não há nenhuma falha registrada", async () => {
+    const response = await app.inject({ method: "GET", url: "/dashboard/erros", headers: authHeader });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.errosGeracaoCobranca).toEqual([]);
+    expect(body.mensagensComFalha).toEqual([]);
+  });
+});
