@@ -17,7 +17,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "seed:usuario": "tsx src/infra/database/seed-usuario.ts"
+    "seed:usuario": "tsx src/infra/database/seed-usuario.ts",
+    "seed:admin": "tsx src/infra/database/seed-admin.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",
