@@ -445,6 +445,13 @@ npx tsc -p tsconfig.test.json --noEmit
 
 > Registro cronológico de marcos. Cada entrada nova vai **no topo** da lista (mais recente primeiro), com data e um resumo do que mudou de estado.
 
+### 2026-07-10 — Correção de documentação: Sprints 4 (FE-ONB) e 6 (FE-CANC+FE-REENVIO) do frontend marcadas "concluída"
+
+- Auditoria de código (não confiando no status de `frontend/sprints/README.md`) confirmou que todos os 19 endpoints HTTP do backend têm função de API correspondente em `frontend/lib/api/` **exceto um**: `GET /dashboard/erros` (COB-05/MSG-05, Sprint 10), que não tem nenhuma cobertura de frontend ainda — nem função, nem tela.
+- No processo, ficou claro que `frontend/sprints/sprint-04-fe-onboarding.md` e `sprint-06-fe-canc-reenvio.md` estavam marcadas "não iniciada" apesar do código já existir de ponta a ponta (tela `/configuracoes` com formulário Asaas/nome remetente/toggle de confirmação + QR Code WhatsApp; botões "Cancelar cobrança"/"Reenviar" em `components/detalhe-cobranca.tsx`) — mesmo desalinhamento documental já registrado para a Sprint 5/FE-AVULSA (ver entrada de 2026-07-09 "Sprint 7 (backend) e Sprint 5 (frontend)... fechadas fora de ordem"). As duas sprints foram implementadas junto dos respectivos backends (ONB na Sprint 6, CANC/REENVIO na Sprint 8), mas o status da sprint de frontend nunca foi atualizado quando o trabalho foi feito.
+- Corrigido, sem nenhuma mudança de código: os dois arquivos de sprint (checkboxes marcados `[x]`, status "concluída", nota de auditoria explicando o que foi conferido e onde) e `frontend/sprints/README.md` (tabela + nova seção "Pendência real", distinguindo explicitamente a lacuna real de `GET /dashboard/erros` do desalinhamento de documentação das outras duas sprints).
+- **Não feito ainda:** nenhuma sprint de frontend dedicada ao painel de `GET /dashboard/erros` existe ainda — é a única peça do backend (dos 10 módulos/19 endpoints) sem nenhuma cobertura de UI. Próximo passo natural do frontend.
+
 ### 2026-07-09 — Sprint 10: Observabilidade Operacional (OBS) — fecha o roadmap de backend planejado nesta rodada
 
 - Fecha OBS-01 a OBS-04 (`api/specs/observabilidade/tasks.md`), via TDD. Última sprint da Análise de Gaps (`api/SistemaDeCobrançaAutomática.md`) — com ela, todas as 10 sprints de backend planejadas em 2026-07-09 estão concluídas.

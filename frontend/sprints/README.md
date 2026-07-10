@@ -43,9 +43,24 @@ visão consolidada).
 | [Sprint 1 — FE-AUTH](sprint-01-fe-auth.md) | `07-frontend-autenticacao` | Sprint 0 | Concluída |
 | [Sprint 2 — FE-CAD](sprint-02-fe-cad.md) | `08-frontend-gestao-clientes` | Sprint 0, Sprint 1 | Concluída |
 | [Sprint 3 — FE-DASH](sprint-03-fe-dash.md) | `09-frontend-dashboard-cobrancas` | Sprint 1 | Concluída |
-| [Sprint 4 — FE-ONB](sprint-04-fe-onboarding.md) | `onboarding` (backend) | Sprint 3, backend Sprint 6 | Não iniciada |
+| [Sprint 4 — FE-ONB](sprint-04-fe-onboarding.md) | `onboarding` (backend) | Sprint 3, backend Sprint 6 | Concluída (implementada fora de ordem) |
 | [Sprint 5 — FE-AVULSA](sprint-05-fe-avulsa.md) | `cobranca-avulsa` (backend) | Sprint 4, backend Sprint 7 (implementada fora de ordem) | Concluída |
-| [Sprint 6 — FE-CANC + FE-REENVIO](sprint-06-fe-canc-reenvio.md) | `cancelamento-cobranca` + `reenvio-mensagem` (backend) | Sprint 5, backend Sprint 8 | Não iniciada |
+| [Sprint 6 — FE-CANC + FE-REENVIO](sprint-06-fe-canc-reenvio.md) | `cancelamento-cobranca` + `reenvio-mensagem` (backend) | Sprint 5, backend Sprint 8 | Concluída (implementada fora de ordem) |
+
+> **Nota de auditoria (2026-07-10):** as Sprints 4 e 6 estavam marcadas "Não iniciada" apesar
+> do código já existir — mesmo desalinhamento documental já visto na Sprint 5 (implementação
+> aconteceu junto do backend correspondente, mas o status da sprint de frontend nunca foi
+> atualizado). Corrigido nesta data, sem nenhuma mudança de código; ver a "Nota de auditoria"
+> em cada arquivo de sprint para o detalhe do que foi conferido.
+
+## Pendência real (não é desalinhamento de documentação)
+
+`GET /dashboard/erros` (COB-05/MSG-05, fechados no backend na Sprint 10 de Observabilidade —
+ver `api/claude.md`) **não tem nenhuma cobertura no frontend**: nenhuma função em `lib/api/`,
+nenhuma tela, nenhum componente. Diferente das Sprints 4 e 6 acima, esta é uma lacuna real,
+não um problema de documentação desatualizada — confirmado por auditoria de código em
+2026-07-10. Ainda não existe uma sprint de frontend dedicada para esse painel de erros; é o
+próximo passo natural do frontend.
 
 ## Referências
 
