@@ -5,7 +5,7 @@ import { DetalheCobranca } from "@/components/detalhe-cobranca";
 import { buscarCobrancaDetalhe } from "@/lib/api/cobrancas";
 
 export const metadata: Metadata = {
-  title: "Detalhe da cobrança — CobraCerta",
+  title: "Detalhe da cobrança — Cobranças",
 };
 
 interface DetalheCobrancaPageProps {

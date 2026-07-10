@@ -5,7 +5,7 @@ import { StatusWhatsapp } from "@/components/status-whatsapp";
 import { obterConfiguracao } from "@/lib/api/configuracoes";
 
 export const metadata: Metadata = {
-  title: "Configurações — CobraCerta",
+  title: "Configurações — Cobranças",
 };
 
 export default async function ConfiguracoesPage() {

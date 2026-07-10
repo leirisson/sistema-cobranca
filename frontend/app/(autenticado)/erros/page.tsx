@@ -6,7 +6,7 @@ import { TabelaMensagensComFalha } from "@/components/tabela-mensagens-com-falha
 import { buscarErrosOperacionais } from "@/lib/api/cobrancas";
 
 export const metadata: Metadata = {
-  title: "Erros operacionais — CobraCerta",
+  title: "Erros operacionais — Cobranças",
 };
 
 interface ErrosPageProps {

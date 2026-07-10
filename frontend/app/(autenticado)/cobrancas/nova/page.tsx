@@ -5,7 +5,7 @@ import { FormularioNovaCobranca } from "@/components/formulario-nova-cobranca";
 import { listarClientes } from "@/lib/api/clientes";
 
 export const metadata: Metadata = {
-  title: "Nova cobrança — CobraCerta",
+  title: "Nova cobrança — Cobranças",
 };
 
 export default async function NovaCobrancaDeCobrancasPage() {

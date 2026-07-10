@@ -9,7 +9,7 @@ import { TabelaCobrancas } from "@/components/tabela-cobrancas";
 import { listarCobrancasDashboard, type StatusCobranca } from "@/lib/api/cobrancas";
 
 export const metadata: Metadata = {
-  title: "Cobranças — CobraCerta",
+  title: "Cobranças — Cobranças",
 };
 
 interface CobrancasPageProps {

@@ -5,7 +5,7 @@ import { FormularioCliente } from "@/components/formulario-cliente";
 import { criarClienteAction } from "@/lib/cliente/actions";
 
 export const metadata: Metadata = {
-  title: "Novo cliente — CobraCerta",
+  title: "Novo cliente — Cobranças",
 };
 
 export default function NovoClientePage() {

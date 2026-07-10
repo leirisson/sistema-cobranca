@@ -7,7 +7,7 @@ import { buscarCliente } from "@/lib/api/clientes";
 import { editarClienteAction, type ClienteFormState } from "@/lib/cliente/actions";
 
 export const metadata: Metadata = {
-  title: "Editar cliente — CobraCerta",
+  title: "Editar cliente — Cobranças",
 };
 
 interface EditarClientePageProps {

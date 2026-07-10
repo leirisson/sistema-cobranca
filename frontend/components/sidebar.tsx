@@ -21,7 +21,7 @@ export function Sidebar() {
   return (
     <>
       <header className="flex items-center justify-between border-b border-linha bg-papel px-4 py-3 md:hidden">
-        <span className="-rotate-4 inline-block font-display text-lg font-semibold text-tinta">CobraCerta</span>
+        <span className="-rotate-4 inline-block font-display text-lg font-semibold text-tinta">Cobranças</span>
         <button
           type="button"
           onClick={() => setAberta(true)}
@@ -46,7 +46,7 @@ export function Sidebar() {
         }`}
       >
         <div className="flex items-center justify-between px-2">
-          <span className="-rotate-4 inline-block font-display text-lg font-semibold text-papel">CobraCerta</span>
+          <span className="-rotate-4 inline-block font-display text-lg font-semibold text-papel">Cobranças</span>
           <button
             type="button"
             onClick={() => setAberta(false)}

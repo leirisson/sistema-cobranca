@@ -6,7 +6,7 @@ import { buscarCliente } from "@/lib/api/clientes";
 import { criarCobrancaManualAction } from "@/lib/cobranca/actions";
 
 export const metadata: Metadata = {
-  title: "Nova cobrança — CobraCerta",
+  title: "Nova cobrança — Cobranças",
 };
 
 interface NovaCobrancaPageProps {

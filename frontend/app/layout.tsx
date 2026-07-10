@@ -22,7 +22,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CobraCerta",
+  title: "Cobranças",
   description: "Cobrança automática para prestadores de serviço com clientes recorrentes.",
 };
 

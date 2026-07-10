@@ -9,7 +9,7 @@ import { listarClientes } from "@/lib/api/clientes";
 import { buscarIndicadoresDashboard, listarCobrancasDashboard } from "@/lib/api/cobrancas";
 
 export const metadata: Metadata = {
-  title: "Painel — CobraCerta",
+  title: "Painel — Cobranças",
 };
 
 const NOMES_MES = [

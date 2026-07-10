@@ -7,7 +7,7 @@ import { TabelaClientes } from "@/components/tabela-clientes";
 import { listarClientes, type StatusCliente } from "@/lib/api/clientes";
 
 export const metadata: Metadata = {
-  title: "Clientes — CobraCerta",
+  title: "Clientes — Cobranças",
 };
 
 interface ClientesPageProps {

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { LoginForm } from "@/components/login-form";
 
 export const metadata: Metadata = {
-  title: "Entrar — CobraCerta",
+  title: "Entrar — Cobranças",
 };
 
 export default function LoginPage() {
@@ -17,7 +17,7 @@ export default function LoginPage() {
           >
             C
           </span>
-          <span className="font-display text-xl font-semibold text-grafite">CobraCerta</span>
+          <span className="font-display text-xl font-semibold text-grafite">Cobranças</span>
         </div>
 
         <div className="rounded-md border border-linha bg-white px-6 py-10 sm:px-8">
