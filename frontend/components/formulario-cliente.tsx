@@ -4,6 +4,7 @@ import { useActionState, useId, useState } from "react";
 
 import type { ClienteDTO, EnderecoClienteDTO, TelefoneClienteDTO } from "@/lib/api/clientes";
 import type { ClienteFormState } from "@/lib/cliente/actions";
+import { SeletorDiaVencimento } from "@/components/seletor-dia-vencimento";
 
 interface FormularioClienteProps {
   clienteInicial?: ClienteDTO;
@@ -180,15 +181,11 @@ export function FormularioCliente({ clienteInicial, action }: FormularioClienteP
           </Campo>
 
           <Campo id={`${idBase}-vencimento`} label="Dia de vencimento (1–28)" erro={camposComErro.diaVencimento}>
-            <input
+            <SeletorDiaVencimento
               id={`${idBase}-vencimento`}
               name="diaVencimento"
-              type="number"
-              min="1"
-              max="28"
-              required
               defaultValue={clienteInicial?.diaVencimento}
-              className={inputClassName(Boolean(camposComErro.diaVencimento))}
+              comErro={Boolean(camposComErro.diaVencimento)}
             />
           </Campo>
         </div>
