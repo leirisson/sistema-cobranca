@@ -5,10 +5,14 @@ import { redirect } from "next/navigation";
 
 import { ApiError } from "../api/client";
 import {
+  buscarCobrancaDetalhe,
   cancelarCobranca,
   criarCobrancaManual,
+  listarCobrancasDashboard,
   reenviarMensagem,
   type CobrancaDashboardDetalhe,
+  type ListarCobrancasDashboardFiltro,
+  type ListarCobrancasDashboardResposta,
 } from "../api/cobrancas";
 import { cobrancaManualSchema } from "./schema";
 
@@ -27,6 +31,7 @@ export async function criarCobrancaManualAction(
     vencimento: formData.get("vencimento")?.toString() ?? "",
     descricao: formData.get("descricao")?.toString() || null,
   };
+  const origem = formData.get("origem")?.toString();
 
   const resultado = cobrancaManualSchema.safeParse(bruto);
 
@@ -50,7 +55,23 @@ export async function criarCobrancaManualAction(
   }
 
   revalidatePath("/clientes");
+  revalidatePath("/cobrancas");
+
+  if (origem === "cobrancas") {
+    redirect("/cobrancas?sucesso=cobranca-criada");
+  }
+
   redirect("/clientes?sucesso=cobranca-criada");
+}
+
+export async function buscarDetalheCobrancaAction(id: string): Promise<CobrancaDashboardDetalhe | null> {
+  return buscarCobrancaDetalhe(id);
+}
+
+export async function listarCobrancasDashboardAction(
+  filtro: ListarCobrancasDashboardFiltro,
+): Promise<ListarCobrancasDashboardResposta> {
+  return listarCobrancasDashboard(filtro);
 }
 
 export async function cancelarCobrancaAction(id: string): Promise<CobrancaDashboardDetalhe> {
@@ -58,6 +79,7 @@ export async function cancelarCobrancaAction(id: string): Promise<CobrancaDashbo
     const detalhe = await cancelarCobranca(id);
     revalidatePath(`/dashboard/cobrancas/${id}`);
     revalidatePath("/dashboard");
+    revalidatePath("/cobrancas");
 
     return detalhe;
   } catch (error) {

@@ -41,6 +41,7 @@ describe("PrismaConfiguracaoRepository", () => {
 
     configuracao.atualizarAsaasApiKeyCifrada("iv:tag:cipher");
     configuracao.atualizarNomeRemetente("Minha Empresa");
+    configuracao.atualizarMensagemCobrancaPersonalizada("Olá {nome}, sua fatura de {valor} vence {vencimento}: {link}");
     configuracao.atualizarConfirmacaoPagamentoHabilitada(true);
 
     await repository.salvar(configuracao);
@@ -49,6 +50,9 @@ describe("PrismaConfiguracaoRepository", () => {
 
     expect(recarregada.asaasApiKeyCifrada).toBe("iv:tag:cipher");
     expect(recarregada.nomeRemetente).toBe("Minha Empresa");
+    expect(recarregada.mensagemCobrancaPersonalizada).toBe(
+      "Olá {nome}, sua fatura de {valor} vence {vencimento}: {link}",
+    );
     expect(recarregada.confirmacaoPagamentoHabilitada).toBe(true);
   });
 

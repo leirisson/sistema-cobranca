@@ -14,8 +14,21 @@ describe("ObterConfiguracaoUseCase", () => {
       asaasApiKeyConfigurada: false,
       asaasApiKeyUltimosDigitos: null,
       nomeRemetente: null,
+      mensagemCobrancaPersonalizada: null,
       confirmacaoPagamentoHabilitada: false,
     });
+  });
+
+  it("devolve a mensagem de cobrança personalizada configurada", async () => {
+    const configuracaoRepository = new FakeConfiguracaoRepository();
+    const configuracao = await configuracaoRepository.buscar();
+    configuracao.atualizarMensagemCobrancaPersonalizada("Olá {nome}!");
+    await configuracaoRepository.salvar(configuracao);
+
+    const useCase = new ObterConfiguracaoUseCase(configuracaoRepository, new FakeCifrador());
+    const resultado = await useCase.executar();
+
+    expect(resultado.mensagemCobrancaPersonalizada).toBe("Olá {nome}!");
   });
 
   it("nunca devolve a chave Asaas em claro, só os últimos 4 dígitos", async () => {

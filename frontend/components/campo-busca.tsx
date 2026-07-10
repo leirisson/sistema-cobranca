@@ -5,7 +5,15 @@ import { useEffect, useRef, useState } from "react";
 
 const DEBOUNCE_MS = 300;
 
-export function CampoBusca({ valorInicial }: { valorInicial: string }) {
+export function CampoBusca({
+  valorInicial,
+  baseHref = "/clientes",
+  placeholder = "Buscar cliente por nome...",
+}: {
+  valorInicial: string;
+  baseHref?: string;
+  placeholder?: string;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [valor, setValor] = useState(valorInicial);
@@ -27,7 +35,7 @@ export function CampoBusca({ valorInicial }: { valorInicial: string }) {
         params.delete("busca");
       }
 
-      router.push(`/clientes?${params.toString()}`);
+      router.push(`${baseHref}?${params.toString()}`);
     }, DEBOUNCE_MS);
   }
 
@@ -36,8 +44,8 @@ export function CampoBusca({ valorInicial }: { valorInicial: string }) {
       type="search"
       value={valor}
       onChange={(event) => handleChange(event.target.value)}
-      placeholder="Buscar cliente por nome..."
-      aria-label="Buscar cliente por nome"
+      placeholder={placeholder}
+      aria-label={placeholder}
       className="w-full max-w-sm rounded-md border border-linha bg-white px-4 py-2.5 text-sm text-grafite placeholder:text-grafite-suave outline-none transition-colors focus:border-2 focus:border-tinta focus:px-[15px] focus:py-[9px]"
     />
   );

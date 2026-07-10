@@ -35,6 +35,7 @@ describe("Rotas /configuracoes", () => {
       asaasApiKeyConfigurada: false,
       asaasApiKeyUltimosDigitos: null,
       nomeRemetente: null,
+      mensagemCobrancaPersonalizada: null,
       confirmacaoPagamentoHabilitada: false,
     });
   });
@@ -98,6 +99,43 @@ describe("Rotas /configuracoes", () => {
     });
 
     expect(response.json().asaasApiKeyConfigurada).toBe(false);
+  });
+
+  it("PUT salva e GET devolve a mensagem de cobrança personalizada", async () => {
+    const putResponse = await app.inject({
+      method: "PUT",
+      url: "/configuracoes",
+      headers: authHeader,
+      payload: { mensagemCobrancaPersonalizada: "Olá {nome}, sua fatura de {valor} vence {vencimento}: {link}" },
+    });
+
+    expect(putResponse.statusCode).toBe(200);
+    expect(putResponse.json().mensagemCobrancaPersonalizada).toBe(
+      "Olá {nome}, sua fatura de {valor} vence {vencimento}: {link}",
+    );
+
+    const getResponse = await app.inject({ method: "GET", url: "/configuracoes", headers: authHeader });
+    expect(getResponse.json().mensagemCobrancaPersonalizada).toBe(
+      "Olá {nome}, sua fatura de {valor} vence {vencimento}: {link}",
+    );
+  });
+
+  it("PUT com mensagemCobrancaPersonalizada null remove o texto customizado salvo", async () => {
+    await app.inject({
+      method: "PUT",
+      url: "/configuracoes",
+      headers: authHeader,
+      payload: { mensagemCobrancaPersonalizada: "Olá {nome}!" },
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/configuracoes",
+      headers: authHeader,
+      payload: { mensagemCobrancaPersonalizada: null },
+    });
+
+    expect(response.json().mensagemCobrancaPersonalizada).toBeNull();
   });
 
   it("GET sem token devolve 401", async () => {
@@ -175,5 +213,39 @@ describe("Rotas /configuracoes", () => {
 
       expect(response.statusCode).toBe(502);
     });
+
+    it("DELETE /configuracoes/whatsapp/conexao desconecta a instância", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response("", { status: 200 }));
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: "/configuracoes/whatsapp/conexao",
+        headers: authHeader,
+      });
+
+      expect(response.statusCode).toBe(204);
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/instance/logout/"),
+        expect.objectContaining({ method: "DELETE" }),
+      );
+    });
+
+    it("DELETE /configuracoes/whatsapp/conexao devolve 502 quando a Evolution API está indisponível", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response("", { status: 500 }));
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: "/configuracoes/whatsapp/conexao",
+        headers: authHeader,
+      });
+
+      expect(response.statusCode).toBe(502);
+    });
+  });
+
+  it("DELETE /configuracoes/whatsapp/conexao sem token devolve 401", async () => {
+    const response = await app.inject({ method: "DELETE", url: "/configuracoes/whatsapp/conexao" });
+
+    expect(response.statusCode).toBe(401);
   });
 });

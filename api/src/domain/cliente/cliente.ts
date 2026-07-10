@@ -31,7 +31,7 @@ const propsSchema = z
     nome: z.string().trim().min(1, "Nome não pode ser vazio"),
     documento: z.string().regex(DOCUMENTO_REGEX, "Documento deve ter 11 dígitos (CPF) ou 14 dígitos (CNPJ)"),
     telefones: z.array(telefoneSchema).min(1, "Cliente deve ter pelo menos 1 telefone"),
-    email: z.string().email().nullish(),
+    email: z.string().trim().email("E-mail inválido").nullish(),
     valorCobranca: z.number().positive("Valor de cobrança deve ser maior que zero"),
     diaVencimento: z
       .number()

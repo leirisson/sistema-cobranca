@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function NovoClientePage() {
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <div>
         <Link href="/clientes" className="text-sm text-grafite-suave hover:text-tinta">
           ← Voltar para clientes

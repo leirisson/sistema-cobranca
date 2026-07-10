@@ -41,6 +41,7 @@ export class DispararLembreteInicialUseCase {
       linkPagamento: cobranca.linkPagamento,
       pixCopiaECola: cobranca.pixCopiaECola,
       nomeRemetente: configuracao.nomeRemetente,
+      mensagemPersonalizada: configuracao.mensagemCobrancaPersonalizada,
     });
 
     const email = montarEmailMensagem("LEMBRETE", {
@@ -50,6 +51,7 @@ export class DispararLembreteInicialUseCase {
       linkPagamento: cobranca.linkPagamento,
       pixCopiaECola: cobranca.pixCopiaECola,
       nomeRemetente: configuracao.nomeRemetente,
+      mensagemPersonalizada: configuracao.mensagemCobrancaPersonalizada,
     });
 
     const resultados = await enviarMensagemMultiplosCanais(this.canalMensagem, this.canalNotificacao, {

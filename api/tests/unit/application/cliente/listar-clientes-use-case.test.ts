@@ -37,7 +37,8 @@ describe("ListarClientesUseCase", () => {
 
     const resultado = await useCase.executar();
 
-    expect(resultado).toHaveLength(2);
+    expect(resultado.itens).toHaveLength(2);
+    expect(resultado.totalItens).toBe(2);
   });
 
   it("filtra por busca de nome", async () => {
@@ -46,8 +47,8 @@ describe("ListarClientesUseCase", () => {
 
     const resultado = await useCase.executar({ busca: "maria" });
 
-    expect(resultado).toHaveLength(1);
-    expect(resultado[0]?.nome).toBe("Maria Silva");
+    expect(resultado.itens).toHaveLength(1);
+    expect(resultado.itens[0]?.nome).toBe("Maria Silva");
   });
 
   it("filtra por status", async () => {
@@ -56,8 +57,8 @@ describe("ListarClientesUseCase", () => {
 
     const resultado = await useCase.executar({ status: "INATIVO" });
 
-    expect(resultado).toHaveLength(1);
-    expect(resultado[0]?.nome).toBe("João Souza");
+    expect(resultado.itens).toHaveLength(1);
+    expect(resultado.itens[0]?.nome).toBe("João Souza");
   });
 
   it("combina busca e status", async () => {
@@ -66,7 +67,35 @@ describe("ListarClientesUseCase", () => {
 
     const resultado = await useCase.executar({ busca: "maria", status: "ATIVO" });
 
-    expect(resultado).toHaveLength(1);
-    expect(resultado[0]?.nome).toBe("Maria Souza");
+    expect(resultado.itens).toHaveLength(1);
+    expect(resultado.itens[0]?.nome).toBe("Maria Souza");
+  });
+
+  it("pagina os resultados (20 por página por padrão)", async () => {
+    for (let i = 1; i <= 25; i++) {
+      await criarCliente(`Cliente ${String(i).padStart(2, "0")}`);
+    }
+
+    const paginaUm = await useCase.executar();
+    const paginaDois = await useCase.executar({ pagina: 2 });
+
+    expect(paginaUm.itens).toHaveLength(20);
+    expect(paginaUm.paginaAtual).toBe(1);
+    expect(paginaUm.totalPaginas).toBe(2);
+    expect(paginaUm.totalItens).toBe(25);
+
+    expect(paginaDois.itens).toHaveLength(5);
+    expect(paginaDois.paginaAtual).toBe(2);
+  });
+
+  it("respeita itensPorPagina customizado", async () => {
+    for (let i = 1; i <= 5; i++) {
+      await criarCliente(`Cliente ${i}`);
+    }
+
+    const resultado = await useCase.executar({ itensPorPagina: 2 });
+
+    expect(resultado.itens).toHaveLength(2);
+    expect(resultado.totalPaginas).toBe(3);
   });
 });

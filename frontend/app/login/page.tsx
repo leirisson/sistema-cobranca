@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <div className="flex flex-1 items-center justify-center bg-papel px-6 py-16">
+    <div className="flex min-w-0 flex-1 items-center justify-center bg-papel px-4 py-16">
       <div className="w-full max-w-sm">
         <div className="mb-10 flex items-center justify-center gap-3">
           <span
@@ -20,7 +20,7 @@ export default function LoginPage() {
           <span className="font-display text-xl font-semibold text-grafite">CobraCerta</span>
         </div>
 
-        <div className="rounded-md border border-linha bg-white px-8 py-10">
+        <div className="rounded-md border border-linha bg-white px-6 py-10 sm:px-8">
           <h1 className="mb-1 font-display text-xl font-semibold text-grafite">Entrar</h1>
           <p className="mb-8 text-sm text-grafite-suave">Acesse o painel de cobranças.</p>
           <LoginForm />

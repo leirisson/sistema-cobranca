@@ -5,6 +5,7 @@ export interface ConfiguracaoDTO {
   asaasApiKeyConfigurada: boolean;
   asaasApiKeyUltimosDigitos: string | null;
   nomeRemetente: string | null;
+  mensagemCobrancaPersonalizada: string | null;
   confirmacaoPagamentoHabilitada: boolean;
 }
 
@@ -21,6 +22,7 @@ export class ObterConfiguracaoUseCase {
       asaasApiKeyConfigurada: configuracao.possuiAsaasApiKeyConfigurada(),
       asaasApiKeyUltimosDigitos: this.obterUltimosDigitos(configuracao.asaasApiKeyCifrada),
       nomeRemetente: configuracao.nomeRemetente,
+      mensagemCobrancaPersonalizada: configuracao.mensagemCobrancaPersonalizada,
       confirmacaoPagamentoHabilitada: configuracao.confirmacaoPagamentoHabilitada,
     };
   }

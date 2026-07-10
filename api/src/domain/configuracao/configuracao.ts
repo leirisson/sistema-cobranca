@@ -3,6 +3,7 @@ export const ID_CONFIGURACAO_DEFAULT = "default";
 export interface ConfiguracaoProps {
   asaasApiKeyCifrada?: string | null;
   nomeRemetente?: string | null;
+  mensagemCobrancaPersonalizada?: string | null;
   confirmacaoPagamentoHabilitada?: boolean;
   confirmacaoPagamentoConfiguradaPeloUsuario?: boolean;
 }
@@ -11,6 +12,7 @@ export interface ConfiguracaoRestauracao {
   id: string;
   asaasApiKeyCifrada: string | null;
   nomeRemetente: string | null;
+  mensagemCobrancaPersonalizada?: string | null;
   confirmacaoPagamentoHabilitada: boolean;
   confirmacaoPagamentoConfiguradaPeloUsuario: boolean;
   createdAt: Date;
@@ -21,6 +23,7 @@ export class Configuracao {
   readonly id: string;
   private _asaasApiKeyCifrada: string | null;
   private _nomeRemetente: string | null;
+  private _mensagemCobrancaPersonalizada: string | null;
   private _confirmacaoPagamentoHabilitada: boolean;
   private _confirmacaoPagamentoConfiguradaPeloUsuario: boolean;
   readonly createdAt: Date;
@@ -30,6 +33,7 @@ export class Configuracao {
     id: string,
     asaasApiKeyCifrada: string | null,
     nomeRemetente: string | null,
+    mensagemCobrancaPersonalizada: string | null,
     confirmacaoPagamentoHabilitada: boolean,
     confirmacaoPagamentoConfiguradaPeloUsuario: boolean,
     createdAt: Date,
@@ -38,6 +42,7 @@ export class Configuracao {
     this.id = id;
     this._asaasApiKeyCifrada = asaasApiKeyCifrada;
     this._nomeRemetente = nomeRemetente;
+    this._mensagemCobrancaPersonalizada = mensagemCobrancaPersonalizada;
     this._confirmacaoPagamentoHabilitada = confirmacaoPagamentoHabilitada;
     this._confirmacaoPagamentoConfiguradaPeloUsuario = confirmacaoPagamentoConfiguradaPeloUsuario;
     this.createdAt = createdAt;
@@ -51,6 +56,7 @@ export class Configuracao {
       ID_CONFIGURACAO_DEFAULT,
       props.asaasApiKeyCifrada ?? null,
       props.nomeRemetente ?? null,
+      props.mensagemCobrancaPersonalizada ?? null,
       props.confirmacaoPagamentoHabilitada ?? false,
       props.confirmacaoPagamentoConfiguradaPeloUsuario ?? false,
       agora,
@@ -63,6 +69,7 @@ export class Configuracao {
       props.id,
       props.asaasApiKeyCifrada,
       props.nomeRemetente,
+      props.mensagemCobrancaPersonalizada ?? null,
       props.confirmacaoPagamentoHabilitada,
       props.confirmacaoPagamentoConfiguradaPeloUsuario,
       props.createdAt,
@@ -77,6 +84,11 @@ export class Configuracao {
 
   atualizarNomeRemetente(valor: string | null): void {
     this._nomeRemetente = valor;
+    this._updatedAt = new Date();
+  }
+
+  atualizarMensagemCobrancaPersonalizada(valor: string | null): void {
+    this._mensagemCobrancaPersonalizada = valor;
     this._updatedAt = new Date();
   }
 
@@ -96,6 +108,10 @@ export class Configuracao {
 
   get nomeRemetente(): string | null {
     return this._nomeRemetente;
+  }
+
+  get mensagemCobrancaPersonalizada(): string | null {
+    return this._mensagemCobrancaPersonalizada;
   }
 
   get confirmacaoPagamentoHabilitada(): boolean {

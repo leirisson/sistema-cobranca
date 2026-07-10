@@ -8,6 +8,18 @@ export interface FiltroDashboardCobranca {
   busca?: string;
 }
 
+export interface PaginacaoInput {
+  pagina: number;
+  itensPorPagina: number;
+}
+
+export interface ResultadoPaginado<T> {
+  itens: T[];
+  paginaAtual: number;
+  totalPaginas: number;
+  totalItens: number;
+}
+
 export interface CobrancaDashboardItem {
   id: string;
   nomeCliente: string;
@@ -21,6 +33,15 @@ export interface TotaisDashboard {
   totalAReceber: number;
   totalRecebido: number;
   totalEmAtraso: number;
+}
+
+export interface IndicadoresDashboard {
+  totalGeradas: number;
+  totalPagas: number;
+  totalAtrasadas: number;
+  ticketMedio: number;
+  totalAvulsas: number;
+  proximosVencimentos: { quantidade: number; valorTotal: number };
 }
 
 export interface MensagemEnviadaHistoricoItem {
@@ -62,9 +83,13 @@ export interface MensagemComFalhaDashboardItem {
 }
 
 export interface DashboardCobrancaQuery {
-  listar(filtro: FiltroDashboardCobranca): Promise<CobrancaDashboardItem[]>;
+  listar(filtro: FiltroDashboardCobranca, paginacao: PaginacaoInput): Promise<ResultadoPaginado<CobrancaDashboardItem>>;
   calcularTotais(filtro: Pick<FiltroDashboardCobranca, "mes" | "ano">): Promise<TotaisDashboard>;
+  calcularIndicadores(
+    filtro: Pick<FiltroDashboardCobranca, "mes" | "ano">,
+    referencia: Date,
+  ): Promise<IndicadoresDashboard>;
   buscarDetalhe(id: string): Promise<CobrancaDashboardDetalhe | null>;
-  listarErrosGeracaoCobranca(limite: number): Promise<ErroGeracaoCobrancaDashboardItem[]>;
-  listarMensagensComFalha(limite: number): Promise<MensagemComFalhaDashboardItem[]>;
+  listarErrosGeracaoCobranca(paginacao: PaginacaoInput): Promise<ResultadoPaginado<ErroGeracaoCobrancaDashboardItem>>;
+  listarMensagensComFalha(paginacao: PaginacaoInput): Promise<ResultadoPaginado<MensagemComFalhaDashboardItem>>;
 }

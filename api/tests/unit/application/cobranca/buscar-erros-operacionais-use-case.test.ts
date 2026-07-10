@@ -23,16 +23,42 @@ describe("BuscarErrosOperacionaisUseCase", () => {
 
     const resultado = await useCase.executar();
 
-    expect(resultado.errosGeracaoCobranca).toHaveLength(1);
-    expect(resultado.mensagensComFalha).toHaveLength(1);
+    expect(resultado.errosGeracaoCobranca.itens).toHaveLength(1);
+    expect(resultado.mensagensComFalha.itens).toHaveLength(1);
   });
 
-  it("aceita um limite customizado, passado a ambas as listagens", async () => {
+  it("pagina cada listagem de forma independente", async () => {
     const query = new FakeDashboardCobrancaQuery();
+    query.errosGeracaoCobranca = Array.from({ length: 25 }, (_, i) => ({
+      id: `erro-${i + 1}`,
+      clienteId: "c1",
+      nomeCliente: "Maria",
+      mensagemErro: "timeout",
+      ocorridoEm: new Date(),
+    }));
     const useCase = new BuscarErrosOperacionaisUseCase(query);
 
-    await useCase.executar(10);
+    const resultado = await useCase.executar({ paginaErros: 2 });
 
-    expect(query.errosGeracaoCobranca.length).toBeLessThanOrEqual(10);
+    expect(resultado.errosGeracaoCobranca.itens).toHaveLength(5);
+    expect(resultado.errosGeracaoCobranca.paginaAtual).toBe(2);
+    expect(resultado.mensagensComFalha.paginaAtual).toBe(1);
+  });
+
+  it("aceita itensPorPagina customizado, aplicado a ambas as listagens", async () => {
+    const query = new FakeDashboardCobrancaQuery();
+    query.errosGeracaoCobranca = Array.from({ length: 15 }, (_, i) => ({
+      id: `erro-${i + 1}`,
+      clienteId: "c1",
+      nomeCliente: "Maria",
+      mensagemErro: "timeout",
+      ocorridoEm: new Date(),
+    }));
+    const useCase = new BuscarErrosOperacionaisUseCase(query);
+
+    const resultado = await useCase.executar({ itensPorPagina: 10 });
+
+    expect(resultado.errosGeracaoCobranca.itens).toHaveLength(10);
+    expect(resultado.errosGeracaoCobranca.totalPaginas).toBe(2);
   });
 });

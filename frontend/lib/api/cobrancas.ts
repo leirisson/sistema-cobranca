@@ -23,9 +23,24 @@ export interface TotaisDashboard {
   totalEmAtraso: number;
 }
 
-export interface ListarCobrancasDashboardResposta {
-  itens: CobrancaDashboardItem[];
+export interface ResultadoPaginado<T> {
+  itens: T[];
+  paginaAtual: number;
+  totalPaginas: number;
+  totalItens: number;
+}
+
+export interface ListarCobrancasDashboardResposta extends ResultadoPaginado<CobrancaDashboardItem> {
   totais: TotaisDashboard;
+}
+
+export interface IndicadoresDashboard {
+  totalGeradas: number;
+  totalPagas: number;
+  totalAtrasadas: number;
+  ticketMedio: number;
+  totalAvulsas: number;
+  proximosVencimentos: { quantidade: number; valorTotal: number };
 }
 
 export interface MensagemEnviadaHistoricoItem {
@@ -54,6 +69,8 @@ export interface ListarCobrancasDashboardFiltro {
   busca?: string;
   mes?: number;
   ano?: number;
+  pagina?: number;
+  itensPorPagina?: number;
 }
 
 export async function listarCobrancasDashboard(
@@ -64,9 +81,22 @@ export async function listarCobrancasDashboard(
   if (filtro.busca) params.set("busca", filtro.busca);
   if (filtro.mes) params.set("mes", String(filtro.mes));
   if (filtro.ano) params.set("ano", String(filtro.ano));
+  if (filtro.pagina) params.set("pagina", String(filtro.pagina));
+  if (filtro.itensPorPagina) params.set("itensPorPagina", String(filtro.itensPorPagina));
 
   const query = params.toString();
   return apiFetch<ListarCobrancasDashboardResposta>(`/dashboard/cobrancas${query ? `?${query}` : ""}`);
+}
+
+export async function buscarIndicadoresDashboard(
+  filtro: { mes?: number; ano?: number } = {},
+): Promise<IndicadoresDashboard> {
+  const params = new URLSearchParams();
+  if (filtro.mes) params.set("mes", String(filtro.mes));
+  if (filtro.ano) params.set("ano", String(filtro.ano));
+
+  const query = params.toString();
+  return apiFetch<IndicadoresDashboard>(`/dashboard/indicadores${query ? `?${query}` : ""}`);
 }
 
 export async function buscarCobrancaDetalhe(id: string): Promise<CobrancaDashboardDetalhe | null> {
@@ -130,10 +160,17 @@ export interface MensagemComFalhaItem {
 }
 
 export interface ErrosOperacionais {
-  errosGeracaoCobranca: ErroGeracaoCobrancaItem[];
-  mensagensComFalha: MensagemComFalhaItem[];
+  errosGeracaoCobranca: ResultadoPaginado<ErroGeracaoCobrancaItem>;
+  mensagensComFalha: ResultadoPaginado<MensagemComFalhaItem>;
 }
 
-export async function buscarErrosOperacionais(): Promise<ErrosOperacionais> {
-  return apiFetch<ErrosOperacionais>("/dashboard/erros");
+export async function buscarErrosOperacionais(
+  filtro: { paginaErros?: number; paginaMensagens?: number } = {},
+): Promise<ErrosOperacionais> {
+  const params = new URLSearchParams();
+  if (filtro.paginaErros) params.set("paginaErros", String(filtro.paginaErros));
+  if (filtro.paginaMensagens) params.set("paginaMensagens", String(filtro.paginaMensagens));
+
+  const query = params.toString();
+  return apiFetch<ErrosOperacionais>(`/dashboard/erros${query ? `?${query}` : ""}`);
 }

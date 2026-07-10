@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import { buscarStatusWhatsappAction, conectarWhatsappAction } from "@/lib/configuracao/actions";
+import {
+  buscarStatusWhatsappAction,
+  conectarWhatsappAction,
+  desconectarWhatsappAction,
+} from "@/lib/configuracao/actions";
 
 const INTERVALO_POLLING_MS = 3000;
 const STATUS_CONECTADO = "open";
@@ -11,6 +15,8 @@ export function StatusWhatsapp() {
   const [status, setStatus] = useState<string | null>(null);
   const [qrCodeBase64, setQrCodeBase64] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [carregandoStatusInicial, setCarregandoStatusInicial] = useState(true);
+  const [desconectando, setDesconectando] = useState(false);
   const [, startTransition] = useTransition();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -33,6 +39,35 @@ export function StatusWhatsapp() {
       }
     });
   }
+
+  function desconectar() {
+    setErro(null);
+    setDesconectando(true);
+    startTransition(async () => {
+      try {
+        await desconectarWhatsappAction();
+        setStatus(null);
+        setQrCodeBase64(null);
+      } catch {
+        setErro("Não foi possível desconectar o WhatsApp no momento.");
+      } finally {
+        setDesconectando(false);
+      }
+    });
+  }
+
+  useEffect(() => {
+    startTransition(async () => {
+      try {
+        const resultado = await buscarStatusWhatsappAction();
+        setStatus(resultado.status);
+      } catch {
+        setErro("Não foi possível consultar o status do WhatsApp.");
+      } finally {
+        setCarregandoStatusInicial(false);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     if (!qrCodeBase64 || status === STATUS_CONECTADO) {
@@ -72,9 +107,14 @@ export function StatusWhatsapp() {
         </p>
       )}
 
-      {status && (
-        <p className="text-sm text-grafite-suave">
-          Status: <span className="font-medium text-grafite">{conectado ? "conectado" : status}</span>
+      {!carregandoStatusInicial && (
+        <p className="flex items-center gap-2 text-sm text-grafite-suave">
+          <span
+            className={`inline-block h-2.5 w-2.5 rounded-full ${conectado ? "bg-carimbo-pago" : "bg-carimbo-atrasado"}`}
+            aria-hidden="true"
+          />
+          Status:{" "}
+          <span className="font-medium text-grafite">{conectado ? "conectado" : (status ?? "desconectado")}</span>
         </p>
       )}
 
@@ -87,13 +127,24 @@ export function StatusWhatsapp() {
         />
       )}
 
-      {!conectado && (
+      {!carregandoStatusInicial && !conectado && (
         <button
           type="button"
           onClick={conectar}
           className="self-start rounded-md bg-tinta px-6 py-3 text-base font-medium text-papel transition-colors hover:bg-[var(--tinta-hover)]"
         >
           {qrCodeBase64 ? "Gerar novo QR Code" : "Conectar WhatsApp"}
+        </button>
+      )}
+
+      {conectado && (
+        <button
+          type="button"
+          onClick={desconectar}
+          disabled={desconectando}
+          className="self-start rounded-md border border-carimbo-atrasado px-6 py-3 text-base font-medium text-carimbo-atrasado transition-colors hover:bg-carimbo-atrasado/5 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {desconectando ? "Desconectando..." : "Desconectar WhatsApp"}
         </button>
       )}
     </div>

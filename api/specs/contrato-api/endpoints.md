@@ -89,6 +89,8 @@ browser: erro de CORS no console, sem resposta utilizável). Não se aplica ao w
   - `busca`: string (nome do cliente, `contains` case-insensitive)
   - `mes`: number (1-12; default: mês corrente)
   - `ano`: number (default: ano corrente)
+  - `pagina`: number (default: 1)
+  - `itensPorPagina`: number (default: 20)
 - **Response 200:**
   ```ts
   {
@@ -100,8 +102,11 @@ browser: erro de CORS no console, sem resposta utilizável). Não se aplica ao w
       status: "PENDENTE" | "PAGO" | "ATRASADO" | "CANCELADO";
       origem: "RECORRENTE" | "AVULSA";
     }>;
+    paginaAtual: number;
+    totalPaginas: number;
+    totalItens: number;
     totais: {
-      totalAReceber: number;   // soma de PENDENTE + ATRASADO
+      totalAReceber: number;   // soma de PENDENTE + ATRASADO, sempre sobre o mês inteiro (não a página)
       totalRecebido: number;   // soma de PAGO
       totalEmAtraso: number;   // soma de ATRASADO
     };
@@ -109,6 +114,31 @@ browser: erro de CORS no console, sem resposta utilizável). Não se aplica ao w
   ```
 - **Erros:**
   - `400 { error: "Status inválido" }` — `status` fora do enum
+  - `401` — sem token válido
+
+---
+
+### `GET /dashboard/indicadores`
+- **Módulo:** DASH
+- **Autenticação:** Protegida (JWT)
+- **Request Query params (todos opcionais):**
+  - `mes`: number (1-12; default: mês corrente)
+  - `ano`: number (default: ano corrente)
+- **Response 200:**
+  ```ts
+  {
+    totalGeradas: number;      // cobranças não CANCELADO no mês
+    totalPagas: number;
+    totalAtrasadas: number;
+    ticketMedio: number;       // soma valor (exceto CANCELADO) / totalGeradas
+    totalAvulsas: number;      // origem AVULSA, exceto CANCELADO
+    proximosVencimentos: { quantidade: number; valorTotal: number }; // PENDENTE vencendo nos próximos 7 dias a partir de agora, sem filtro de mês
+  }
+  ```
+- **Semântica:** calculado via agregação SQL sobre o mês inteiro (não paginado) — existe porque
+  `GET /dashboard/cobrancas` agora é paginado e não pode mais ser usado para derivar esses KPIs
+  no frontend iterando `itens` (que seria só a página atual).
+- **Erros:**
   - `401` — sem token válido
 
 ---
@@ -183,22 +213,35 @@ browser: erro de CORS no console, sem resposta utilizável). Não se aplica ao w
 ### `GET /dashboard/erros`
 - **Módulo:** COB (COB-05), MSG (MSG-05)
 - **Autenticação:** Protegida (JWT)
-- **Request:** nenhum param/query
+- **Request Query params (todos opcionais):**
+  - `paginaErros`: number (default: 1) — pagina `errosGeracaoCobranca`
+  - `paginaMensagens`: number (default: 1) — pagina `mensagensComFalha`, independente de `paginaErros`
 - **Response 200:**
   ```json
   {
-    "errosGeracaoCobranca": [
-      { "id": "uuid", "clienteId": "uuid", "nomeCliente": "string", "mensagemErro": "string", "ocorridoEm": "ISO-8601" }
-    ],
-    "mensagensComFalha": [
-      { "id": "uuid", "cobrancaId": "uuid", "nomeCliente": "string", "tipo": "LEMBRETE|VENCIMENTO|ATRASO|CONFIRMACAO", "canal": "whatsapp|email", "enviadoEm": "ISO-8601" }
-    ]
+    "errosGeracaoCobranca": {
+      "itens": [
+        { "id": "uuid", "clienteId": "uuid", "nomeCliente": "string", "mensagemErro": "string", "ocorridoEm": "ISO-8601" }
+      ],
+      "paginaAtual": 1,
+      "totalPaginas": 1,
+      "totalItens": 1
+    },
+    "mensagensComFalha": {
+      "itens": [
+        { "id": "uuid", "cobrancaId": "uuid", "nomeCliente": "string", "tipo": "LEMBRETE|VENCIMENTO|ATRASO|CONFIRMACAO", "canal": "whatsapp|email", "enviadoEm": "ISO-8601" }
+      ],
+      "paginaAtual": 1,
+      "totalPaginas": 1,
+      "totalItens": 1
+    }
   }
   ```
-- **Semântica:** últimos 20 registros de cada lista (mais recentes primeiro). `errosGeracaoCobranca`
-  vem de `GerarCobrancaUseCase` isolando falha por cliente (não interrompe os demais, COB-R-03);
-  `mensagensComFalha` é a `MensagemEnviada` já existente filtrada por `statusEnvio: "FALHA"` — cada
-  item pode ser reenviado via `POST /dashboard/cobrancas/:id/mensagens/:mensagemId/reenviar`
+- **Semântica:** 20 registros por página em cada lista (mais recentes primeiro), paginadas
+  independentemente uma da outra. `errosGeracaoCobranca` vem de `GerarCobrancaUseCase` isolando
+  falha por cliente (não interrompe os demais, COB-R-03); `mensagensComFalha` é a `MensagemEnviada`
+  já existente filtrada por `statusEnvio: "FALHA"` — cada item pode ser reenviado via
+  `POST /dashboard/cobrancas/:id/mensagens/:mensagemId/reenviar`
 - **Erros:**
   - `401` — sem token válido
 
@@ -210,7 +253,17 @@ browser: erro de CORS no console, sem resposta utilizável). Não se aplica ao w
 - **Request Query params (todos opcionais):**
   - `busca`: string (nome do cliente, `contains` case-insensitive)
   - `status`: `ATIVO` \| `INATIVO`
-- **Response 200:** array de `ClienteDTO` (ver shape abaixo)
+  - `pagina`: number (default: 1)
+  - `itensPorPagina`: number (default: 20)
+- **Response 200:**
+  ```ts
+  {
+    itens: ClienteDTO[]; // ver shape abaixo
+    paginaAtual: number;
+    totalPaginas: number;
+    totalItens: number;
+  }
+  ```
 - **Erros:**
   - `400 { error: "Status inválido" }` — `status` fora do enum
   - `401` — sem token válido

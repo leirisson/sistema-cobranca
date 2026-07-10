@@ -168,4 +168,19 @@ describe("DispararLembreteInicialUseCase", () => {
 
     expect(canalMensagem.chamadas[0]?.texto).toContain("Minha Empresa");
   });
+
+  it("usa a mensagem de cobrança personalizada configurada, no lugar do template fixo", async () => {
+    const cliente = criarCliente(undefined, "maria@example.com");
+    await clienteRepository.salvar(cliente);
+    const configuracao = await configuracaoRepository.buscar();
+    configuracao.atualizarMensagemCobrancaPersonalizada("Oi {nome}, sua fatura de {valor} vence {vencimento}: {link}");
+    await configuracaoRepository.salvar(configuracao);
+    const cobranca = criarCobranca(cliente.id);
+
+    await useCase.executar(cobranca);
+
+    expect(canalMensagem.chamadas[0]?.texto).toContain("Oi Maria Silva, sua fatura de");
+    expect(canalMensagem.chamadas[0]?.texto).toContain(cobranca.linkPagamento);
+    expect(canalNotificacao.chamadas[0]?.corpoHtml).toContain("Oi Maria Silva");
+  });
 });

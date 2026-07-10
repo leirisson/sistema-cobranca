@@ -18,25 +18,41 @@ export function TabelaErrosGeracaoCobranca({ erros }: { erros: ErroGeracaoCobran
   }
 
   return (
-    <table className="w-full min-w-[560px] border-collapse text-left text-sm">
-      <thead>
-        <tr className="border-b border-linha text-xs uppercase tracking-wide text-grafite-suave">
-          <th className="px-4 py-3 font-medium">Cliente</th>
-          <th className="px-4 py-3 font-medium">Erro</th>
-          <th className="px-4 py-3 font-medium">Ocorrido em</th>
-        </tr>
-      </thead>
-      <tbody>
+    <>
+      <ul className="flex flex-col lg:hidden">
         {erros.map((erro) => (
-          <tr key={erro.id} className="border-b border-linha last:border-0">
-            <td className="px-4 py-3 whitespace-nowrap text-grafite">{erro.nomeCliente}</td>
-            <td className="px-4 py-3 text-grafite">{erro.mensagemErro}</td>
-            <td className="px-4 py-3 font-numeric whitespace-nowrap text-grafite">
-              {formatadorDataHora.format(new Date(erro.ocorridoEm))}
-            </td>
-          </tr>
+          <li key={erro.id} className="flex flex-col gap-1.5 border-b border-linha px-4 py-3.5 last:border-0">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="font-medium text-grafite">{erro.nomeCliente}</p>
+              <p className="shrink-0 font-numeric text-xs text-grafite-suave">
+                {formatadorDataHora.format(new Date(erro.ocorridoEm))}
+              </p>
+            </div>
+            <p className="text-sm text-grafite-suave">{erro.mensagemErro}</p>
+          </li>
         ))}
-      </tbody>
-    </table>
+      </ul>
+
+      <table className="hidden w-full min-w-[560px] border-collapse text-left text-sm lg:table">
+        <thead>
+          <tr className="border-b border-linha text-xs uppercase tracking-wide text-grafite-suave">
+            <th className="px-4 py-3 font-medium">Cliente</th>
+            <th className="px-4 py-3 font-medium">Erro</th>
+            <th className="px-4 py-3 font-medium">Ocorrido em</th>
+          </tr>
+        </thead>
+        <tbody>
+          {erros.map((erro) => (
+            <tr key={erro.id} className="border-b border-linha last:border-0">
+              <td className="px-4 py-3 whitespace-nowrap text-grafite">{erro.nomeCliente}</td>
+              <td className="px-4 py-3 text-grafite">{erro.mensagemErro}</td>
+              <td className="px-4 py-3 font-numeric whitespace-nowrap text-grafite">
+                {formatadorDataHora.format(new Date(erro.ocorridoEm))}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
   );
 }

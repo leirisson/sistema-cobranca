@@ -63,6 +63,7 @@ export class DispararReguaAtrasoUseCase {
         linkPagamento: cobranca.linkPagamento,
         pixCopiaECola: cobranca.pixCopiaECola,
         nomeRemetente: configuracao.nomeRemetente,
+        mensagemPersonalizada: configuracao.mensagemCobrancaPersonalizada,
       });
 
       const email = montarEmailMensagem(tipo, {
@@ -72,6 +73,7 @@ export class DispararReguaAtrasoUseCase {
         linkPagamento: cobranca.linkPagamento,
         pixCopiaECola: cobranca.pixCopiaECola,
         nomeRemetente: configuracao.nomeRemetente,
+        mensagemPersonalizada: configuracao.mensagemCobrancaPersonalizada,
       });
 
       const resultados = await enviarMensagemMultiplosCanais(this.canalMensagem, this.canalNotificacao, {

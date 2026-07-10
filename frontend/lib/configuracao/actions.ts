@@ -6,6 +6,7 @@ import { ApiError } from "../api/client";
 import {
   atualizarConfiguracao,
   conectarWhatsapp,
+  desconectarWhatsapp,
   obterStatusWhatsapp,
   type ConfiguracaoDTO,
   type WhatsappConectarDTO,
@@ -26,6 +27,7 @@ export async function atualizarConfiguracaoAction(
   const bruto = {
     asaasApiKey: formData.get("asaasApiKey")?.toString() ?? undefined,
     nomeRemetente: formData.get("nomeRemetente")?.toString() || null,
+    mensagemCobrancaPersonalizada: formData.get("mensagemCobrancaPersonalizada")?.toString() || null,
     confirmacaoPagamentoHabilitada: formData.get("confirmacaoPagamentoHabilitada") === "on",
   };
 
@@ -51,6 +53,10 @@ export async function buscarStatusWhatsappAction(): Promise<WhatsappStatusDTO> {
 
 export async function conectarWhatsappAction(): Promise<WhatsappConectarDTO> {
   return conectarWhatsapp();
+}
+
+export async function desconectarWhatsappAction(): Promise<void> {
+  return desconectarWhatsapp();
 }
 
 function mensagemDeErro(error: unknown): string {

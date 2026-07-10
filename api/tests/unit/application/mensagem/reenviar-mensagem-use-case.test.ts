@@ -174,4 +174,36 @@ describe("ReenviarMensagemUseCase", () => {
 
     await expect(useCase.executar(original.id)).rejects.toThrow(CobrancaInvalidaError);
   });
+
+  it("reenvia usando a mensagem de cobrança personalizada configurada (LEMBRETE)", async () => {
+    const cliente = criarCliente();
+    await clienteRepository.salvar(cliente);
+    const cobranca = criarCobranca(cliente.id);
+    await cobrancaRepository.salvar(cobranca);
+    const configuracao = await configuracaoRepository.buscar();
+    configuracao.atualizarMensagemCobrancaPersonalizada("Oi {nome}, sua fatura de {valor} vence {vencimento}: {link}");
+    await configuracaoRepository.salvar(configuracao);
+    const original = MensagemEnviada.criar({ cobrancaId: cobranca.id, tipo: "LEMBRETE", statusEnvio: "FALHA", canal: "whatsapp" });
+    await mensagemEnviadaRepository.salvar(original);
+
+    await useCase.executar(original.id);
+
+    expect(canalMensagem.chamadas[0]?.texto).toContain("Oi Maria Silva, sua fatura de");
+  });
+
+  it("não usa a mensagem personalizada ao reenviar CONFIRMACAO (fora de escopo do template de cobrança)", async () => {
+    const cliente = criarCliente();
+    await clienteRepository.salvar(cliente);
+    const cobranca = criarCobranca(cliente.id);
+    await cobrancaRepository.salvar(cobranca);
+    const configuracao = await configuracaoRepository.buscar();
+    configuracao.atualizarMensagemCobrancaPersonalizada("Oi {nome}, sua fatura de {valor} vence {vencimento}: {link}");
+    await configuracaoRepository.salvar(configuracao);
+    const original = MensagemEnviada.criar({ cobrancaId: cobranca.id, tipo: "CONFIRMACAO", statusEnvio: "FALHA", canal: "whatsapp" });
+    await mensagemEnviadaRepository.salvar(original);
+
+    await useCase.executar(original.id);
+
+    expect(canalMensagem.chamadas[0]?.texto).toContain("Confirmamos o recebimento");
+  });
 });

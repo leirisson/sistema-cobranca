@@ -5,6 +5,7 @@ import type { ConfiguracaoDTO } from "./obter-configuracao-use-case.js";
 export interface AtualizarConfiguracaoInput {
   asaasApiKey?: string;
   nomeRemetente?: string | null;
+  mensagemCobrancaPersonalizada?: string | null;
   confirmacaoPagamentoHabilitada?: boolean;
 }
 
@@ -29,6 +30,10 @@ export class AtualizarConfiguracaoUseCase {
       configuracao.atualizarNomeRemetente(input.nomeRemetente);
     }
 
+    if (input.mensagemCobrancaPersonalizada !== undefined) {
+      configuracao.atualizarMensagemCobrancaPersonalizada(input.mensagemCobrancaPersonalizada);
+    }
+
     if (input.confirmacaoPagamentoHabilitada !== undefined) {
       configuracao.atualizarConfirmacaoPagamentoHabilitada(input.confirmacaoPagamentoHabilitada);
     }
@@ -43,6 +48,7 @@ export class AtualizarConfiguracaoUseCase {
           ? this.cifrador.decifrar(configuracao.asaasApiKeyCifrada!).slice(-4)
           : null,
       nomeRemetente: configuracao.nomeRemetente,
+      mensagemCobrancaPersonalizada: configuracao.mensagemCobrancaPersonalizada,
       confirmacaoPagamentoHabilitada: configuracao.confirmacaoPagamentoHabilitada,
     };
   }

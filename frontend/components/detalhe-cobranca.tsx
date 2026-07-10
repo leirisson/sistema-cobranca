@@ -1,15 +1,19 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
-import { cancelarCobrancaAction, reenviarMensagemAction } from "@/lib/cobranca/actions";
+import { buscarDetalheCobrancaAction, cancelarCobrancaAction, reenviarMensagemAction } from "@/lib/cobranca/actions";
 import type { CanalNotificacao, CobrancaDashboardDetalhe, TipoMensagem } from "@/lib/api/cobrancas";
 
+import { ModalConfirmarCancelamento } from "./modal-confirmar-cancelamento";
 import { StatusBadgeCobranca } from "./status-badge-cobranca";
 
 const formatadorMoeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const formatadorData = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
 const formatadorDataHora = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+const INTERVALO_POLLING_MS = 5000;
+const STATUS_FINAIS = new Set(["PAGO", "CANCELADO"]);
 
 const LABEL_TIPO: Record<TipoMensagem, string> = {
   LEMBRETE: "Lembrete",
@@ -26,23 +30,53 @@ const LABEL_CANAL: Record<CanalNotificacao, string> = {
 export function DetalheCobranca({ detalheInicial }: { detalheInicial: CobrancaDashboardDetalhe }) {
   const [detalhe, setDetalhe] = useState(detalheInicial);
   const [confirmandoCancelamento, setConfirmandoCancelamento] = useState(false);
+  const [erroCancelamento, setErroCancelamento] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [reenviandoId, setReenviandoId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const podeCancelar = detalhe.status === "PENDENTE" || detalhe.status === "ATRASADO";
   const podeReenviar = detalhe.status !== "PAGO" && detalhe.status !== "CANCELADO";
 
+  useEffect(() => {
+    if (STATUS_FINAIS.has(detalhe.status)) {
+      return;
+    }
+
+    intervalRef.current = setInterval(() => {
+      startTransition(async () => {
+        try {
+          const atualizado = await buscarDetalheCobrancaAction(detalhe.id);
+          if (atualizado) {
+            setDetalhe(atualizado);
+          }
+        } catch {
+          // Falha silenciosa: mantém o último estado conhecido e tenta de novo no próximo intervalo.
+        }
+      });
+    }, INTERVALO_POLLING_MS);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [detalhe.id, detalhe.status]);
+
   function handleCancelar() {
-    setErro(null);
+    setErroCancelamento(false);
+    setCancelando(true);
     startTransition(async () => {
       try {
         const atualizado = await cancelarCobrancaAction(detalhe.id);
         setDetalhe(atualizado);
         setConfirmandoCancelamento(false);
       } catch {
-        setErro("Não foi possível cancelar a cobrança. Tente novamente.");
-        setConfirmandoCancelamento(false);
+        setErroCancelamento(true);
+      } finally {
+        setCancelando(false);
       }
     });
   }
@@ -63,137 +97,171 @@ export function DetalheCobranca({ detalheInicial }: { detalheInicial: CobrancaDa
   }
 
   return (
-    <>
-      <div className="rounded-md border border-linha bg-white p-6 shadow-[0_4px_16px_-4px_rgba(28,35,33,0.12)]">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="font-display text-2xl font-semibold text-grafite">{detalhe.nomeCliente}</h1>
-            <p className="mt-1 font-numeric text-sm text-grafite-suave">
-              Vencimento em {formatadorData.format(new Date(detalhe.vencimento))}
-            </p>
-            {detalhe.origem === "AVULSA" && (
-              <p className="mt-1 text-xs font-medium uppercase tracking-wide text-grafite-suave">
-                Cobrança avulsa
-              </p>
-            )}
-          </div>
-          <StatusBadgeCobranca status={detalhe.status} />
-        </div>
+    <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_23rem] xl:gap-8">
+      <div
+        className="entrada-escalonada relative overflow-hidden rounded-md border border-linha bg-white shadow-[0_8px_28px_-8px_rgba(28,35,33,0.2)]"
+        style={{ animationDelay: "60ms" }}
+      >
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-10 -right-10 font-display text-[11rem] leading-none font-medium text-tinta/[0.035] select-none"
+        >
+          §
+        </span>
 
-        <p className="mt-6 font-display text-3xl font-medium tabular-nums text-grafite">
-          {formatadorMoeda.format(detalhe.valor)}
-        </p>
-
-        {detalhe.descricao && <p className="mt-2 text-sm text-grafite-suave">{detalhe.descricao}</p>}
-
-        {(detalhe.linkPagamento || detalhe.pixCopiaECola) && (
-          <div className="mt-6 flex flex-col gap-3 border-t border-linha pt-6">
-            {detalhe.linkPagamento && (
-              <a
-                href={detalhe.linkPagamento}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex w-fit items-center rounded-md bg-tinta px-4 py-2.5 text-sm font-medium text-papel transition-colors hover:bg-[var(--tinta-hover)]"
-              >
-                Abrir link de pagamento
-              </a>
-            )}
-
-            {detalhe.pixCopiaECola && (
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-grafite-suave">Pix copia-e-cola</p>
-                <p className="mt-1 break-all rounded-md border border-linha bg-papel px-3 py-2 font-numeric text-xs text-grafite">
-                  {detalhe.pixCopiaECola}
+        <div className="relative flex flex-col gap-6 p-6 sm:p-8 lg:p-10">
+          <div className="flex flex-wrap items-start justify-between gap-5">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold tracking-[0.2em] text-grafite-suave uppercase">Cobrança de</p>
+              <h1 className="mt-1.5 font-display text-3xl font-semibold break-words text-grafite sm:text-4xl">
+                {detalhe.nomeCliente}
+              </h1>
+              <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <p className="font-numeric text-sm text-grafite-suave">
+                  Vencimento em {formatadorData.format(new Date(detalhe.vencimento))}
                 </p>
+                {detalhe.origem === "AVULSA" && (
+                  <span className="inline-flex rounded-sm bg-carimbo-cancelado/15 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-grafite-suave uppercase">
+                    Cobrança avulsa
+                  </span>
+                )}
               </div>
+            </div>
+            <div className="efeito-carimbo shrink-0" style={{ animationDelay: "220ms" }}>
+              <StatusBadgeCobranca status={detalhe.status} tamanho="lg" />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 border-t border-dashed border-linha pt-6">
+            <p className="font-display text-4xl font-medium tabular-nums text-grafite sm:text-5xl">
+              {formatadorMoeda.format(detalhe.valor)}
+            </p>
+            {detalhe.descricao && (
+              <p className="max-w-sm text-sm text-grafite-suave sm:text-right">{detalhe.descricao}</p>
             )}
           </div>
-        )}
 
-        {podeCancelar && (
-          <div className="mt-6 border-t border-linha pt-6">
-            {confirmandoCancelamento ? (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <p className="text-sm text-grafite">Cancelar esta cobrança? Essa ação não pode ser desfeita.</p>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={handleCancelar}
-                    disabled={pending}
-                    className="rounded-md bg-carimbo-atrasado px-4 py-2 text-sm font-medium text-papel transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Confirmar cancelamento
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmandoCancelamento(false)}
-                    disabled={pending}
-                    className="rounded-md border border-linha px-4 py-2 text-sm font-medium text-grafite transition-colors hover:bg-papel"
-                  >
-                    Voltar
-                  </button>
+          {(detalhe.linkPagamento || detalhe.pixCopiaECola) && (
+            <div className="grid grid-cols-1 gap-4 border-t border-dashed border-linha pt-6 sm:grid-cols-[auto_1fr] sm:items-start">
+              {detalhe.linkPagamento && (
+                <a
+                  href={detalhe.linkPagamento}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex w-fit items-center gap-2 rounded-md bg-tinta px-5 py-3 text-sm font-medium text-papel transition-colors hover:bg-[var(--tinta-hover)]"
+                >
+                  Abrir link de pagamento
+                  <span aria-hidden="true">↗</span>
+                </a>
+              )}
+
+              {detalhe.pixCopiaECola && (
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold tracking-[0.14em] text-grafite-suave uppercase">
+                    Pix copia-e-cola
+                  </p>
+                  <p className="mt-1.5 rounded-md border border-linha bg-papel px-3.5 py-3 font-numeric text-xs break-all text-grafite">
+                    {detalhe.pixCopiaECola}
+                  </p>
                 </div>
-              </div>
-            ) : (
+              )}
+            </div>
+          )}
+
+          {podeCancelar && (
+            <div className="border-t border-dashed border-linha pt-6">
               <button
                 type="button"
                 onClick={() => setConfirmandoCancelamento(true)}
-                className="text-sm font-medium text-carimbo-atrasado hover:underline"
+                className="group inline-flex w-fit items-center gap-2 rounded-md border-2 border-carimbo-atrasado px-5 py-3 text-sm font-semibold text-carimbo-atrasado transition-colors hover:bg-carimbo-atrasado hover:text-papel"
               >
+                <span aria-hidden="true" className="text-base leading-none">✕</span>
                 Cancelar cobrança
               </button>
-            )}
-          </div>
-        )}
+            </div>
+          )}
 
-        {erro && (
-          <p role="alert" className="mt-4 text-sm text-carimbo-atrasado">
-            {erro}
-          </p>
-        )}
+          {erro && (
+            <p role="alert" className="rounded-md border border-carimbo-atrasado/30 bg-[color-mix(in_srgb,var(--carimbo-atrasado)_8%,transparent)] px-4 py-3 text-sm font-medium text-carimbo-atrasado">
+              {erro}
+            </p>
+          )}
+        </div>
       </div>
 
-      <div className="rounded-md border border-linha bg-white p-6 shadow-[0_4px_16px_-4px_rgba(28,35,33,0.12)]">
-        <h2 className="font-display text-lg font-semibold text-grafite">Histórico de mensagens</h2>
+      <div
+        className="entrada-escalonada rounded-md border border-linha bg-white shadow-[0_8px_28px_-8px_rgba(28,35,33,0.2)] xl:sticky xl:top-8"
+        style={{ animationDelay: "140ms" }}
+      >
+        <div className="border-b border-dashed border-linha p-6 sm:p-7">
+          <h2 className="font-display text-lg font-semibold text-grafite">Histórico de mensagens</h2>
+          <p className="mt-1 text-xs text-grafite-suave">Lembretes, vencimento, atraso e confirmação.</p>
+        </div>
 
-        {detalhe.mensagens.length === 0 ? (
-          <p className="mt-4 text-sm text-grafite-suave">Nenhuma mensagem enviada para esta cobrança ainda.</p>
-        ) : (
-          <ul className="mt-4 flex flex-col divide-y divide-linha">
-            {detalhe.mensagens.map((mensagem) => (
-              <li key={mensagem.id} className="flex items-center justify-between gap-4 py-3">
-                <div>
-                  <p className="text-sm text-grafite">
-                    {LABEL_TIPO[mensagem.tipo]} · {LABEL_CANAL[mensagem.canal]}
-                  </p>
-                  <p className="mt-0.5 font-numeric text-xs text-grafite-suave">
-                    {formatadorDataHora.format(new Date(mensagem.enviadoEm))}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  {mensagem.statusEnvio === "FALHA" && podeReenviar && (
-                    <button
-                      type="button"
-                      onClick={() => handleReenviar(mensagem.id)}
-                      disabled={pending}
-                      className="text-xs font-medium text-tinta hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {reenviandoId === mensagem.id && pending ? "Reenviando…" : "Reenviar"}
-                    </button>
+        <div className="p-6 sm:p-7">
+          {detalhe.mensagens.length === 0 ? (
+            <p className="text-sm text-grafite-suave">Nenhuma mensagem enviada para esta cobrança ainda.</p>
+          ) : (
+            <ul className="flex flex-col">
+              {detalhe.mensagens.map((mensagem, indice) => (
+                <li key={mensagem.id} className="relative flex items-start gap-4 pb-5 pl-1 last:pb-0">
+                  {indice !== detalhe.mensagens.length - 1 && (
+                    <span aria-hidden="true" className="absolute top-3 left-[7px] h-full w-px bg-linha" />
                   )}
                   <span
-                    className={`text-xs font-medium uppercase tracking-wide ${
-                      mensagem.statusEnvio === "ENVIADO" ? "text-carimbo-pago" : "text-carimbo-atrasado"
+                    aria-hidden="true"
+                    className={`relative mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full border-2 bg-papel ${
+                      mensagem.statusEnvio === "ENVIADO" ? "border-carimbo-pago" : "border-carimbo-atrasado"
                     }`}
-                  >
-                    {mensagem.statusEnvio === "ENVIADO" ? "Enviado" : "Falha"}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+                  />
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-grafite">
+                          {LABEL_TIPO[mensagem.tipo]}
+                          <span className="font-normal text-grafite-suave"> · {LABEL_CANAL[mensagem.canal]}</span>
+                        </p>
+                        <p className="mt-0.5 font-numeric text-xs text-grafite-suave">
+                          {formatadorDataHora.format(new Date(mensagem.enviadoEm))}
+                        </p>
+                      </div>
+                      <span
+                        className={`shrink-0 text-xs font-medium tracking-wide uppercase ${
+                          mensagem.statusEnvio === "ENVIADO" ? "text-carimbo-pago" : "text-carimbo-atrasado"
+                        }`}
+                      >
+                        {mensagem.statusEnvio === "ENVIADO" ? "Enviado" : "Falha"}
+                      </span>
+                    </div>
+                    {mensagem.statusEnvio === "FALHA" && podeReenviar && (
+                      <button
+                        type="button"
+                        onClick={() => handleReenviar(mensagem.id)}
+                        disabled={pending}
+                        className="w-fit text-xs font-medium text-tinta hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {reenviandoId === mensagem.id && pending ? "Reenviando…" : "Reenviar"}
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
-    </>
+
+      <ModalConfirmarCancelamento
+        aberto={confirmandoCancelamento}
+        pendente={cancelando}
+        erro={erroCancelamento}
+        nomeCliente={detalhe.nomeCliente}
+        onFechar={() => {
+          setConfirmandoCancelamento(false);
+          setErroCancelamento(false);
+        }}
+        onConfirmar={handleCancelar}
+      />
+    </div>
   );
 }

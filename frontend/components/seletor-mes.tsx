@@ -17,7 +17,19 @@ const NOMES_MES = [
   "Dezembro",
 ];
 
-export function SeletorMes({ mes, ano, status }: { mes: number; ano: number; status?: string }) {
+export function SeletorMes({
+  mes,
+  ano,
+  status,
+  busca,
+  baseHref = "/cobrancas",
+}: {
+  mes: number;
+  ano: number;
+  status?: string;
+  busca?: string;
+  baseHref?: string;
+}) {
   const router = useRouter();
 
   function navegarPara(novoMes: number, novoAno: number) {
@@ -25,7 +37,8 @@ export function SeletorMes({ mes, ano, status }: { mes: number; ano: number; sta
     params.set("mes", String(novoMes));
     params.set("ano", String(novoAno));
     if (status) params.set("status", status);
-    router.push(`/dashboard?${params.toString()}`);
+    if (busca) params.set("busca", busca);
+    router.push(`${baseHref}?${params.toString()}`);
   }
 
   function irParaMesAnterior() {

@@ -45,7 +45,7 @@ function extrairInputDoFormData(formData: FormData): { input?: ClienteInput; err
     nome: formData.get("nome")?.toString() ?? "",
     documento: (formData.get("documento")?.toString() ?? "").replace(/\D/g, ""),
     telefones,
-    email: formData.get("email")?.toString() || null,
+    email: formData.get("email")?.toString() ?? "",
     valorCobranca: Number(formData.get("valorCobranca")),
     diaVencimento: Number(formData.get("diaVencimento")),
     inscricaoEstadual: formData.get("inscricaoEstadual")?.toString() || null,

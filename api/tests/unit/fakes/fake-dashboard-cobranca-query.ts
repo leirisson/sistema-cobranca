@@ -4,13 +4,36 @@ import type {
   DashboardCobrancaQuery,
   ErroGeracaoCobrancaDashboardItem,
   FiltroDashboardCobranca,
+  IndicadoresDashboard,
   MensagemComFalhaDashboardItem,
+  PaginacaoInput,
+  ResultadoPaginado,
   TotaisDashboard,
 } from "../../../src/domain/cobranca/dashboard-cobranca-query.js";
+
+function paginar<T>(itens: T[], paginacao: PaginacaoInput): ResultadoPaginado<T> {
+  const inicio = (paginacao.pagina - 1) * paginacao.itensPorPagina;
+  const totalItens = itens.length;
+
+  return {
+    itens: itens.slice(inicio, inicio + paginacao.itensPorPagina),
+    paginaAtual: paginacao.pagina,
+    totalPaginas: Math.max(1, Math.ceil(totalItens / paginacao.itensPorPagina)),
+    totalItens,
+  };
+}
 
 export class FakeDashboardCobrancaQuery implements DashboardCobrancaQuery {
   itens: CobrancaDashboardItem[] = [];
   totais: TotaisDashboard = { totalAReceber: 0, totalRecebido: 0, totalEmAtraso: 0 };
+  indicadores: IndicadoresDashboard = {
+    totalGeradas: 0,
+    totalPagas: 0,
+    totalAtrasadas: 0,
+    ticketMedio: 0,
+    totalAvulsas: 0,
+    proximosVencimentos: { quantidade: 0, valorTotal: 0 },
+  };
   detalhe: CobrancaDashboardDetalhe | null = null;
   errosGeracaoCobranca: ErroGeracaoCobrancaDashboardItem[] = [];
   mensagensComFalha: MensagemComFalhaDashboardItem[] = [];
@@ -18,9 +41,12 @@ export class FakeDashboardCobrancaQuery implements DashboardCobrancaQuery {
   ultimoFiltroTotais: Pick<FiltroDashboardCobranca, "mes" | "ano"> | null = null;
   ultimoIdBuscado: string | null = null;
 
-  async listar(filtro: FiltroDashboardCobranca): Promise<CobrancaDashboardItem[]> {
+  async listar(
+    filtro: FiltroDashboardCobranca,
+    paginacao: PaginacaoInput,
+  ): Promise<ResultadoPaginado<CobrancaDashboardItem>> {
     this.ultimoFiltroListar = filtro;
-    return this.itens;
+    return paginar(this.itens, paginacao);
   }
 
   async calcularTotais(filtro: Pick<FiltroDashboardCobranca, "mes" | "ano">): Promise<TotaisDashboard> {
@@ -28,16 +54,24 @@ export class FakeDashboardCobrancaQuery implements DashboardCobrancaQuery {
     return this.totais;
   }
 
+  async calcularIndicadores(): Promise<IndicadoresDashboard> {
+    return this.indicadores;
+  }
+
   async buscarDetalhe(id: string): Promise<CobrancaDashboardDetalhe | null> {
     this.ultimoIdBuscado = id;
     return this.detalhe;
   }
 
-  async listarErrosGeracaoCobranca(limite: number): Promise<ErroGeracaoCobrancaDashboardItem[]> {
-    return this.errosGeracaoCobranca.slice(0, limite);
+  async listarErrosGeracaoCobranca(
+    paginacao: PaginacaoInput,
+  ): Promise<ResultadoPaginado<ErroGeracaoCobrancaDashboardItem>> {
+    return paginar(this.errosGeracaoCobranca, paginacao);
   }
 
-  async listarMensagensComFalha(limite: number): Promise<MensagemComFalhaDashboardItem[]> {
-    return this.mensagensComFalha.slice(0, limite);
+  async listarMensagensComFalha(
+    paginacao: PaginacaoInput,
+  ): Promise<ResultadoPaginado<MensagemComFalhaDashboardItem>> {
+    return paginar(this.mensagensComFalha, paginacao);
   }
 }

@@ -18,6 +18,7 @@ describe("CriarClienteUseCase", () => {
       nome: "Maria Silva",
       documento: "12345678900",
       telefones: [{ numero: "+5511999998888", principal: true }],
+      email: "maria@example.com",
       valorCobranca: 150,
       diaVencimento: 10,
     });
@@ -31,6 +32,21 @@ describe("CriarClienteUseCase", () => {
     await expect(
       useCase.executar({
         nome: "",
+        documento: "12345678900",
+        telefones: [{ numero: "+5511999998888", principal: true }],
+        email: "maria@example.com",
+        valorCobranca: 150,
+        diaVencimento: 10,
+      }),
+    ).rejects.toThrow(ClienteInvalidoError);
+
+    expect(repository.clientes).toHaveLength(0);
+  });
+
+  it("rejeita cliente sem e-mail (CAD-R-05)", async () => {
+    await expect(
+      useCase.executar({
+        nome: "Maria Silva",
         documento: "12345678900",
         telefones: [{ numero: "+5511999998888", principal: true }],
         valorCobranca: 150,

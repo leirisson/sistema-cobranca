@@ -30,10 +30,11 @@ export function ToggleStatusCliente({ id, status }: { id: string; status: Status
   return (
     <div className="flex items-center gap-2">
       <button
+        key={statusOtimista}
         type="button"
         onClick={handleClick}
         disabled={pending}
-        className="transition-opacity hover:opacity-70 disabled:cursor-not-allowed disabled:opacity-50"
+        className="efeito-carimbo transition-opacity hover:opacity-70 disabled:cursor-not-allowed disabled:opacity-50"
         title={statusOtimista === "ATIVO" ? "Clique para inativar" : "Clique para reativar"}
       >
         <StatusBadge status={statusOtimista} />

@@ -18,24 +18,32 @@ export default async function DetalheCobrancaPage({ params }: DetalheCobrancaPag
 
   if (!cobranca) {
     return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-        <h1 className="font-display text-xl font-semibold text-grafite">Cobrança não encontrada</h1>
-        <Link href="/dashboard" className="text-sm font-medium text-tinta hover:underline">
-          Voltar para o painel
+      <main className="papel-textura relative flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
+        <span aria-hidden="true" className="relative z-[1] font-display text-4xl text-linha">
+          ⁘
+        </span>
+        <h1 className="relative z-[1] font-display text-xl font-semibold text-grafite">Cobrança não encontrada</h1>
+        <Link href="/cobrancas" className="relative z-[1] text-sm font-medium text-tinta hover:underline">
+          ← Voltar para cobranças
         </Link>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-10">
-      <div>
-        <Link href="/dashboard" className="text-sm text-grafite-suave hover:text-tinta">
-          ← Voltar para o painel
+    <main className="papel-textura relative flex w-full min-w-0 flex-1 flex-col gap-8 px-4 py-8 sm:px-10 sm:py-10 lg:px-16">
+      <div className="relative z-[1] entrada-escalonada">
+        <Link
+          href="/cobrancas"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-grafite-suave transition-colors hover:text-tinta"
+        >
+          <span aria-hidden="true">←</span> Voltar para cobranças
         </Link>
       </div>
 
-      <DetalheCobranca detalheInicial={cobranca} />
+      <div className="relative z-[1]">
+        <DetalheCobranca detalheInicial={cobranca} />
+      </div>
     </main>
   );
 }

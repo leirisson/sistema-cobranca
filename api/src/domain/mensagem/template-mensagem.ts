@@ -5,6 +5,7 @@ export interface DadosTemplateMensagem {
   linkPagamento: string;
   pixCopiaECola?: string | null;
   nomeRemetente?: string | null;
+  mensagemPersonalizada?: string | null;
 }
 
 export type TipoMensagemComTemplate = "LEMBRETE" | "VENCIMENTO" | "ATRASO";
@@ -25,11 +26,23 @@ function montarAssinatura(nomeRemetente?: string | null): string {
   return nomeRemetente ? `\n\n— ${nomeRemetente}` : "";
 }
 
+function substituirPlaceholders(template: string, dados: DadosTemplateMensagem): string {
+  return template
+    .replaceAll("{nome}", dados.nomeCliente)
+    .replaceAll("{valor}", formatarValor(dados.valor))
+    .replaceAll("{vencimento}", formatarData(dados.vencimento))
+    .replaceAll("{link}", dados.linkPagamento);
+}
+
 export function montarTextoMensagem(tipo: TipoMensagemComTemplate, dados: DadosTemplateMensagem): string {
   const valorFormatado = formatarValor(dados.valor);
   const vencimentoFormatado = formatarData(dados.vencimento);
   const trechoPix = montarTrechoPix(dados.pixCopiaECola);
   const assinatura = montarAssinatura(dados.nomeRemetente);
+
+  if (dados.mensagemPersonalizada && dados.mensagemPersonalizada.trim().length > 0) {
+    return `${substituirPlaceholders(dados.mensagemPersonalizada, dados)}${trechoPix}${assinatura}`;
+  }
 
   switch (tipo) {
     case "LEMBRETE":

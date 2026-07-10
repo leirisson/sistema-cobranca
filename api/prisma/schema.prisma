@@ -60,6 +60,7 @@ model Configuracao {
   id                                       String   @id
   asaasApiKeyCifrada                      String?  @map("asaas_api_key_cifrada")
   nomeRemetente                            String?  @map("nome_remetente")
+  mensagemCobrancaPersonalizada            String?  @map("mensagem_cobranca_personalizada")
   confirmacaoPagamentoHabilitada          Boolean  @default(false) @map("confirmacao_pagamento_habilitada")
   confirmacaoPagamentoConfiguradaPeloUsuario Boolean @default(false) @map("confirmacao_pagamento_configurada_pelo_usuario")
   createdAt                                DateTime @default(now()) @map("created_at")

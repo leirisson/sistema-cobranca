@@ -202,4 +202,17 @@ describe("DispararReguaAtrasoUseCase", () => {
 
     expect(canalMensagem.chamadas[0]?.texto).toContain("Minha Empresa");
   });
+
+  it("usa a mensagem de cobrança personalizada configurada, no lugar do template fixo", async () => {
+    const configuracao = await configuracaoRepository.buscar();
+    configuracao.atualizarMensagemCobrancaPersonalizada("Oi {nome}, sua fatura de {valor} vence {vencimento}: {link}");
+    await configuracaoRepository.salvar(configuracao);
+    const cobranca = criarCobranca(cliente.id, new Date("2026-08-10"));
+    await cobrancaRepository.salvar(cobranca);
+
+    await useCase.executar(new Date("2026-08-10"));
+
+    expect(canalMensagem.chamadas[0]?.texto).toContain("Oi Maria Silva, sua fatura de");
+    expect(canalMensagem.chamadas[0]?.texto).toContain(cobranca.linkPagamento);
+  });
 });

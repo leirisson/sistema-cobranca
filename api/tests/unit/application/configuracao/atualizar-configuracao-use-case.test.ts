@@ -54,4 +54,36 @@ describe("AtualizarConfiguracaoUseCase", () => {
 
     expect(resultado.confirmacaoPagamentoHabilitada).toBe(true);
   });
+
+  it("salva a mensagem de cobrança personalizada", async () => {
+    const configuracaoRepository = new FakeConfiguracaoRepository();
+    const cifrador = new FakeCifrador();
+    const useCase = new AtualizarConfiguracaoUseCase(configuracaoRepository, cifrador);
+
+    const resultado = await useCase.executar({ mensagemCobrancaPersonalizada: "Olá {nome}!" });
+
+    expect(resultado.mensagemCobrancaPersonalizada).toBe("Olá {nome}!");
+  });
+
+  it("edição parcial: atualizar só nomeRemetente não apaga a mensagem personalizada já salva", async () => {
+    const configuracaoRepository = new FakeConfiguracaoRepository();
+    const cifrador = new FakeCifrador();
+    const useCase = new AtualizarConfiguracaoUseCase(configuracaoRepository, cifrador);
+    await useCase.executar({ mensagemCobrancaPersonalizada: "Olá {nome}!" });
+
+    const resultado = await useCase.executar({ nomeRemetente: "Minha Empresa" });
+
+    expect(resultado.mensagemCobrancaPersonalizada).toBe("Olá {nome}!");
+  });
+
+  it("mensagemCobrancaPersonalizada null remove o texto customizado salvo", async () => {
+    const configuracaoRepository = new FakeConfiguracaoRepository();
+    const cifrador = new FakeCifrador();
+    const useCase = new AtualizarConfiguracaoUseCase(configuracaoRepository, cifrador);
+    await useCase.executar({ mensagemCobrancaPersonalizada: "Olá {nome}!" });
+
+    const resultado = await useCase.executar({ mensagemCobrancaPersonalizada: null });
+
+    expect(resultado.mensagemCobrancaPersonalizada).toBeNull();
+  });
 });

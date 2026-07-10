@@ -32,34 +32,57 @@ export function TabelaMensagensComFalha({ mensagens }: { mensagens: MensagemComF
   }
 
   return (
-    <table className="w-full min-w-[560px] border-collapse text-left text-sm">
-      <thead>
-        <tr className="border-b border-linha text-xs uppercase tracking-wide text-grafite-suave">
-          <th className="px-4 py-3 font-medium">Cliente</th>
-          <th className="px-4 py-3 font-medium">Tipo</th>
-          <th className="px-4 py-3 font-medium">Canal</th>
-          <th className="px-4 py-3 font-medium">Enviado em</th>
-        </tr>
-      </thead>
-      <tbody>
+    <>
+      <ul className="flex flex-col lg:hidden">
         {mensagens.map((mensagem) => (
-          <tr key={mensagem.id} className="border-b border-linha last:border-0">
-            <td className="px-4 py-3 whitespace-nowrap text-grafite">
+          <li key={mensagem.id} className="flex flex-col gap-1.5 border-b border-linha px-4 py-3.5 last:border-0">
+            <div className="flex items-baseline justify-between gap-3">
               <Link
                 href={`/dashboard/cobrancas/${mensagem.cobrancaId}`}
-                className="transition-colors hover:text-tinta hover:underline"
+                className="font-medium text-grafite underline decoration-linha decoration-1 underline-offset-4 transition-colors active:text-tinta"
               >
                 {mensagem.nomeCliente}
               </Link>
-            </td>
-            <td className="px-4 py-3 text-grafite">{LABEL_TIPO[mensagem.tipo]}</td>
-            <td className="px-4 py-3 text-grafite">{LABEL_CANAL[mensagem.canal]}</td>
-            <td className="px-4 py-3 font-numeric whitespace-nowrap text-grafite">
-              {formatadorDataHora.format(new Date(mensagem.enviadoEm))}
-            </td>
-          </tr>
+              <p className="shrink-0 font-numeric text-xs text-grafite-suave">
+                {formatadorDataHora.format(new Date(mensagem.enviadoEm))}
+              </p>
+            </div>
+            <p className="text-sm text-grafite-suave">
+              {LABEL_TIPO[mensagem.tipo]} · {LABEL_CANAL[mensagem.canal]}
+            </p>
+          </li>
         ))}
-      </tbody>
-    </table>
+      </ul>
+
+      <table className="hidden w-full min-w-[560px] border-collapse text-left text-sm lg:table">
+        <thead>
+          <tr className="border-b border-linha text-xs uppercase tracking-wide text-grafite-suave">
+            <th className="px-4 py-3 font-medium">Cliente</th>
+            <th className="px-4 py-3 font-medium">Tipo</th>
+            <th className="px-4 py-3 font-medium">Canal</th>
+            <th className="px-4 py-3 font-medium">Enviado em</th>
+          </tr>
+        </thead>
+        <tbody>
+          {mensagens.map((mensagem) => (
+            <tr key={mensagem.id} className="border-b border-linha last:border-0">
+              <td className="px-4 py-3 whitespace-nowrap text-grafite">
+                <Link
+                  href={`/dashboard/cobrancas/${mensagem.cobrancaId}`}
+                  className="transition-colors hover:text-tinta hover:underline"
+                >
+                  {mensagem.nomeCliente}
+                </Link>
+              </td>
+              <td className="px-4 py-3 text-grafite">{LABEL_TIPO[mensagem.tipo]}</td>
+              <td className="px-4 py-3 text-grafite">{LABEL_CANAL[mensagem.canal]}</td>
+              <td className="px-4 py-3 font-numeric whitespace-nowrap text-grafite">
+                {formatadorDataHora.format(new Date(mensagem.enviadoEm))}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
   );
 }

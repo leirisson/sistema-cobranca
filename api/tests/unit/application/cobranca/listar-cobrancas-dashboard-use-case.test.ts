@@ -51,4 +51,24 @@ describe("ListarCobrancasDashboardUseCase", () => {
     expect(query.ultimoFiltroListar).toMatchObject({ mes: 12, ano: 2025 });
     expect(query.ultimoFiltroTotais).toMatchObject({ mes: 12, ano: 2025 });
   });
+
+  it("pagina os itens (20 por página por padrão)", async () => {
+    query.itens = Array.from({ length: 25 }, (_, i) => ({
+      id: `c${i + 1}`,
+      nomeCliente: `Cliente ${i + 1}`,
+      valor: 100,
+      vencimento: new Date("2026-07-10"),
+      status: "PENDENTE" as const,
+      origem: "RECORRENTE" as const,
+    }));
+
+    const paginaUm = await useCase.executar({}, new Date("2026-07-15T12:00:00Z"));
+    const paginaDois = await useCase.executar({ pagina: 2 }, new Date("2026-07-15T12:00:00Z"));
+
+    expect(paginaUm.itens).toHaveLength(20);
+    expect(paginaUm.totalPaginas).toBe(2);
+    expect(paginaUm.totalItens).toBe(25);
+    expect(paginaDois.itens).toHaveLength(5);
+    expect(paginaDois.paginaAtual).toBe(2);
+  });
 });

@@ -37,6 +37,26 @@ describe("EvolutionInstanceGateway", () => {
     );
   });
 
+  it("conectar() devolve o QR Code quando a Evolution API responde no formato plano (sem wrapper qrcode/instance)", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          pairingCode: null,
+          code: "2@abc...",
+          base64: "data:image/png;base64,def456",
+          count: 1,
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const gateway = new EvolutionInstanceGateway(config());
+    const resultado = await gateway.conectar();
+
+    expect(resultado.qrCodeBase64).toBe("data:image/png;base64,def456");
+    expect(resultado.status).toBe("connecting");
+  });
+
   it("conectar() devolve qrCodeBase64 null quando a instância já está conectada", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(JSON.stringify({ instance: { instanceName: "cobracerta", state: "open" } }), { status: 200 }),
@@ -78,5 +98,25 @@ describe("EvolutionInstanceGateway", () => {
     const gateway = new EvolutionInstanceGateway(config());
 
     await expect(gateway.obterStatus()).rejects.toThrow();
+  });
+
+  it("desconectar() chama o endpoint de logout da instância", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response("", { status: 200 }));
+
+    const gateway = new EvolutionInstanceGateway(config());
+    await gateway.desconectar();
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:8080/instance/logout/cobracerta",
+      expect.objectContaining({ method: "DELETE", headers: { apikey: "test-key" } }),
+    );
+  });
+
+  it("desconectar() lança erro quando a Evolution API responde com status não-ok", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response("", { status: 500 }));
+
+    const gateway = new EvolutionInstanceGateway(config());
+
+    await expect(gateway.desconectar()).rejects.toThrow();
   });
 });

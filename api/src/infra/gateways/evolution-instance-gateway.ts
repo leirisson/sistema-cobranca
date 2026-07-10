@@ -13,6 +13,7 @@ export interface EvolutionInstanceGatewayConfig {
 interface EvolutionInstanceStateResponse {
   instance?: { instanceName?: string; state?: string; status?: string };
   qrcode?: { base64?: string };
+  base64?: string;
 }
 
 export class EvolutionInstanceGateway implements InstanciaWhatsappGateway {
@@ -28,10 +29,11 @@ export class EvolutionInstanceGateway implements InstanciaWhatsappGateway {
     }
 
     const dados = (await response.json()) as EvolutionInstanceStateResponse;
+    const qrCodeBase64 = dados.qrcode?.base64 ?? dados.base64 ?? null;
 
     return {
-      qrCodeBase64: dados.qrcode?.base64 ?? null,
-      status: this.extrairStatus(dados),
+      qrCodeBase64,
+      status: dados.instance?.state ?? dados.instance?.status ?? (qrCodeBase64 ? "connecting" : "desconhecido"),
     };
   }
 
@@ -47,6 +49,17 @@ export class EvolutionInstanceGateway implements InstanciaWhatsappGateway {
     const dados = (await response.json()) as EvolutionInstanceStateResponse;
 
     return { status: this.extrairStatus(dados) };
+  }
+
+  async desconectar(): Promise<void> {
+    const response = await fetch(`${this.config.baseUrl}/instance/logout/${this.config.instance}`, {
+      method: "DELETE",
+      headers: this.headers(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Evolution API retornou status ${response.status} ao desconectar instância`);
+    }
   }
 
   private extrairStatus(dados: EvolutionInstanceStateResponse): string {

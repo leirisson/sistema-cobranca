@@ -89,6 +89,22 @@ describe("POST /webhooks/asaas", () => {
     expect(atualizada?.status).toBe("PAGO");
   });
 
+  it("ignora eventos que não são confirmação de pagamento (ex: PAYMENT_CHECKOUT_VIEWED), sem alterar a cobrança", async () => {
+    const cobranca = await criarCobrancaPendente("asaas_checkout_viewed");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/webhooks/asaas",
+      headers: { "asaas-access-token": "test-token" },
+      payload: { event: "PAYMENT_CHECKOUT_VIEWED", payment: { id: "asaas_checkout_viewed" } },
+    });
+
+    expect(response.statusCode).toBe(200);
+
+    const atualizada = await cobrancaRepository.buscarPorId(cobranca.id);
+    expect(atualizada?.status).toBe("PENDENTE");
+  });
+
   it("retorna 200 (idempotente) para gatewayChargeId inexistente, sem quebrar o webhook", async () => {
     const response = await app.inject({
       method: "POST",

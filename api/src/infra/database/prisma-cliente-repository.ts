@@ -1,7 +1,7 @@
-import type { PrismaClient, Cliente as ClientePrisma, TelefoneCliente as TelefoneClientePrisma } from "@prisma/client";
+import type { Prisma, PrismaClient, Cliente as ClientePrisma, TelefoneCliente as TelefoneClientePrisma } from "@prisma/client";
 
-import { Cliente } from "../../domain/cliente/cliente.js";
-import type { ClienteRepository } from "../../domain/cliente/cliente-repository.js";
+import { Cliente, type StatusCliente } from "../../domain/cliente/cliente.js";
+import type { ClienteRepository, PaginacaoInput, ResultadoPaginado } from "../../domain/cliente/cliente-repository.js";
 
 type ClienteComTelefones = ClientePrisma & { telefones: TelefoneClientePrisma[] };
 
@@ -96,6 +96,34 @@ export class PrismaClienteRepository implements ClienteRepository {
     });
 
     return registros.map((registro) => this.paraEntidade(registro));
+  }
+
+  async listarPaginado(
+    filtro: { busca?: string; status?: StatusCliente },
+    paginacao: PaginacaoInput,
+  ): Promise<ResultadoPaginado<Cliente>> {
+    const where: Prisma.ClienteWhereInput = {
+      ...(filtro.busca ? { nome: { contains: filtro.busca, mode: "insensitive" } } : {}),
+      ...(filtro.status ? { status: filtro.status } : {}),
+    };
+
+    const [registros, totalItens] = await Promise.all([
+      this.prisma.cliente.findMany({
+        where,
+        include: { telefones: true },
+        orderBy: { nome: "asc" },
+        skip: (paginacao.pagina - 1) * paginacao.itensPorPagina,
+        take: paginacao.itensPorPagina,
+      }),
+      this.prisma.cliente.count({ where }),
+    ]);
+
+    return {
+      itens: registros.map((registro) => this.paraEntidade(registro)),
+      paginaAtual: paginacao.pagina,
+      totalPaginas: Math.max(1, Math.ceil(totalItens / paginacao.itensPorPagina)),
+      totalItens,
+    };
   }
 
   async remover(id: string): Promise<void> {

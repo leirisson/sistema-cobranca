@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useId } from "react";
+import { useActionState, useId, useState } from "react";
 
 import type { ConfiguracaoDTO } from "@/lib/api/configuracoes";
 import { atualizarConfiguracaoAction, type ConfiguracaoFormState } from "@/lib/configuracao/actions";
+import { templatesMensagemCobranca } from "@/lib/configuracao/templates-mensagem";
 
 interface FormularioConfiguracaoProps {
   configuracaoInicial: ConfiguracaoDTO;
@@ -15,6 +16,7 @@ export function FormularioConfiguracao({ configuracaoInicial }: FormularioConfig
   const [state, formAction, pending] = useActionState(atualizarConfiguracaoAction, estadoInicial);
   const idBase = useId();
   const configuracaoAtual = state.configuracao ?? configuracaoInicial;
+  const [mensagem, setMensagem] = useState(configuracaoAtual.mensagemCobrancaPersonalizada ?? "");
 
   return (
     <form action={formAction} className="flex flex-col gap-6 rounded-lg border border-linha bg-white p-6">
@@ -70,6 +72,40 @@ export function FormularioConfiguracao({ configuracaoInicial }: FormularioConfig
         />
       </div>
 
+      <div className="flex flex-col gap-2">
+        <label htmlFor={`${idBase}-mensagemCobrancaPersonalizada`} className="text-sm font-medium text-grafite">
+          Mensagem personalizada de cobrança (opcional)
+        </label>
+
+        <div className="flex flex-wrap gap-2">
+          {templatesMensagemCobranca.map((template) => (
+            <button
+              key={template.id}
+              type="button"
+              onClick={() => setMensagem(template.texto)}
+              title={template.descricao}
+              className="rounded-md border border-linha px-3 py-1.5 text-sm font-medium text-grafite transition-colors hover:border-tinta hover:text-tinta"
+            >
+              {template.nome}
+            </button>
+          ))}
+        </div>
+
+        <textarea
+          id={`${idBase}-mensagemCobrancaPersonalizada`}
+          name="mensagemCobrancaPersonalizada"
+          rows={10}
+          value={mensagem}
+          onChange={(evento) => setMensagem(evento.target.value)}
+          placeholder="Ex: Olá {nome}! Sua cobrança de {valor} vence em {vencimento}. Pague aqui: {link}"
+          className={inputClassName()}
+        />
+        <p className="text-sm text-grafite-suave">
+          Escolha um modelo acima para preencher e edite como quiser. Placeholders disponíveis: {"{nome}"},{" "}
+          {"{valor}"}, {"{vencimento}"}, {"{link}"}. Deixe em branco para usar a mensagem padrão do sistema.
+        </p>
+      </div>
+
       <label className="flex items-center gap-3 text-sm font-medium text-grafite">
         <input
           type="checkbox"
@@ -92,5 +128,5 @@ export function FormularioConfiguracao({ configuracaoInicial }: FormularioConfig
 }
 
 function inputClassName(): string {
-  return "rounded-md border border-linha bg-white px-4 py-2.5 text-base text-grafite outline-none transition-colors focus:border-2 focus:border-tinta focus:px-[15px] focus:py-[9px]";
+  return "w-full min-w-0 rounded-md border border-linha bg-white px-4 py-2.5 text-base text-grafite outline-none transition-colors focus:border-2 focus:border-tinta focus:px-[15px] focus:py-[9px]";
 }

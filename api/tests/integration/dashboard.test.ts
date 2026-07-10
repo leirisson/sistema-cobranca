@@ -182,6 +182,118 @@ describe("GET /dashboard/cobrancas", () => {
 
     expect(response.statusCode).toBe(400);
   });
+
+  it("pagina cobranças via ?pagina=, mantendo os totais do mês inteiro", async () => {
+    for (let i = 1; i <= 25; i++) {
+      await criarClienteComCobranca(`Cliente ${String(i).padStart(2, "0")}`, "2026-07-10", "PENDENTE");
+    }
+
+    const paginaUm = await app.inject({
+      method: "GET",
+      url: "/dashboard/cobrancas?mes=7&ano=2026",
+      headers: authHeader,
+    });
+    const paginaDois = await app.inject({
+      method: "GET",
+      url: "/dashboard/cobrancas?mes=7&ano=2026&pagina=2",
+      headers: authHeader,
+    });
+
+    expect(paginaUm.json().itens).toHaveLength(20);
+    expect(paginaDois.json().itens).toHaveLength(5);
+    expect(paginaDois.json().paginaAtual).toBe(2);
+    expect(paginaUm.json().totais.totalAReceber).toBe(paginaDois.json().totais.totalAReceber);
+  });
+});
+
+describe("GET /dashboard/indicadores", () => {
+  let app: FastifyInstance;
+  const clienteRepository = new PrismaClienteRepository(prisma);
+  const cobrancaRepository = new PrismaCobrancaRepository(prisma);
+  const geradorToken = new JwtGeradorToken({ secret: env.JWT_SECRET, expiresIn: env.JWT_EXPIRES_IN });
+  const token = geradorToken.gerar({ sub: "usuario-teste", email: "dono@cobracerta.com" });
+  const authHeader = { authorization: `Bearer ${token}` };
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    app = buildApp();
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await prisma.mensagemEnviada.deleteMany();
+    await prisma.cobranca.deleteMany();
+    await prisma.telefoneCliente.deleteMany();
+    await prisma.cliente.deleteMany();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await prisma.$disconnect();
+  });
+
+  async function criarClienteComCobranca(
+    nome: string,
+    vencimento: string,
+    status: "PENDENTE" | "PAGO" | "ATRASADO" | "CANCELADO",
+    valor = 150,
+    origem: "RECORRENTE" | "AVULSA" = "RECORRENTE",
+  ) {
+    const cliente = Cliente.criar({
+      nome,
+      documento: "12345678900",
+      telefones: [{ numero: "+5511999998888", principal: true }],
+      valorCobranca: valor,
+      diaVencimento: 10,
+    });
+    await clienteRepository.salvar(cliente);
+
+    const cobranca = Cobranca.criar({
+      clienteId: cliente.id,
+      valor,
+      vencimento: new Date(vencimento),
+      gatewayChargeId: `asaas_${cliente.id}`,
+      linkPagamento: `https://sandbox.asaas.com/i/asaas_${cliente.id}`,
+      origem,
+    });
+
+    if (status === "PAGO") {
+      cobranca.marcarComoPaga(new Date(vencimento));
+    } else if (status === "ATRASADO") {
+      cobranca.marcarComoAtrasada();
+    } else if (status === "CANCELADO") {
+      cobranca.cancelar();
+    }
+
+    await cobrancaRepository.salvar(cobranca);
+
+    return cobranca;
+  }
+
+  it("rejeita requisição sem token com 401", async () => {
+    const response = await app.inject({ method: "GET", url: "/dashboard/indicadores" });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("calcula indicadores mesmo com mais de 20 cobranças no mês (não depende da paginação)", async () => {
+    for (let i = 1; i <= 25; i++) {
+      await criarClienteComCobranca(`Cliente ${i}`, "2026-07-10", i <= 10 ? "PAGO" : "PENDENTE", 100);
+    }
+    await criarClienteComCobranca("Cliente Avulso", "2026-07-15", "PENDENTE", 300, "AVULSA");
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/dashboard/indicadores?mes=7&ano=2026",
+      headers: authHeader,
+    });
+    const body = response.json();
+
+    expect(response.statusCode).toBe(200);
+    expect(body.totalGeradas).toBe(26);
+    expect(body.totalPagas).toBe(10);
+    expect(body.totalAvulsas).toBe(1);
+  });
 });
 
 describe("GET /dashboard/cobrancas/:id", () => {
@@ -527,13 +639,13 @@ describe("GET /dashboard/erros", () => {
 
     expect(response.statusCode).toBe(200);
     const body = response.json();
-    expect(body.errosGeracaoCobranca).toHaveLength(1);
-    expect(body.errosGeracaoCobranca[0]).toMatchObject({
+    expect(body.errosGeracaoCobranca.itens).toHaveLength(1);
+    expect(body.errosGeracaoCobranca.itens[0]).toMatchObject({
       nomeCliente: "Maria Silva",
       mensagemErro: "Falha ao criar cobrança no Asaas: timeout",
     });
-    expect(body.mensagensComFalha).toHaveLength(1);
-    expect(body.mensagensComFalha[0]).toMatchObject({
+    expect(body.mensagensComFalha.itens).toHaveLength(1);
+    expect(body.mensagensComFalha.itens[0]).toMatchObject({
       nomeCliente: "João Souza",
       tipo: "LEMBRETE",
       canal: "whatsapp",
@@ -545,7 +657,31 @@ describe("GET /dashboard/erros", () => {
 
     expect(response.statusCode).toBe(200);
     const body = response.json();
-    expect(body.errosGeracaoCobranca).toEqual([]);
-    expect(body.mensagensComFalha).toEqual([]);
+    expect(body.errosGeracaoCobranca.itens).toEqual([]);
+    expect(body.mensagensComFalha.itens).toEqual([]);
+  });
+
+  it("pagina erros de geração de cobrança via ?paginaErros=", async () => {
+    for (let i = 1; i <= 25; i++) {
+      await prisma.erroGeracaoCobranca.create({
+        data: {
+          id: `erro-${i}`,
+          clienteId: "cliente-inexistente",
+          nomeCliente: `Cliente ${i}`,
+          mensagemErro: "timeout",
+        },
+      });
+    }
+
+    const paginaUm = await app.inject({ method: "GET", url: "/dashboard/erros", headers: authHeader });
+    const paginaDois = await app.inject({
+      method: "GET",
+      url: "/dashboard/erros?paginaErros=2",
+      headers: authHeader,
+    });
+
+    expect(paginaUm.json().errosGeracaoCobranca.itens).toHaveLength(20);
+    expect(paginaDois.json().errosGeracaoCobranca.itens).toHaveLength(5);
+    expect(paginaDois.json().errosGeracaoCobranca.paginaAtual).toBe(2);
   });
 });

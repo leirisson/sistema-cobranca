@@ -6,28 +6,46 @@ import type {
   DashboardCobrancaQuery,
   ErroGeracaoCobrancaDashboardItem,
   FiltroDashboardCobranca,
+  IndicadoresDashboard,
   MensagemComFalhaDashboardItem,
+  PaginacaoInput,
+  ResultadoPaginado,
   TotaisDashboard,
 } from "../../domain/cobranca/dashboard-cobranca-query.js";
 
 export class PrismaDashboardCobrancaQuery implements DashboardCobrancaQuery {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async listar(filtro: FiltroDashboardCobranca): Promise<CobrancaDashboardItem[]> {
-    const registros = await this.prisma.cobranca.findMany({
-      where: this.montarWhere(filtro),
-      include: { cliente: { select: { nome: true } } },
-      orderBy: { vencimento: "asc" },
-    });
+  async listar(
+    filtro: FiltroDashboardCobranca,
+    paginacao: PaginacaoInput,
+  ): Promise<ResultadoPaginado<CobrancaDashboardItem>> {
+    const where = this.montarWhere(filtro);
 
-    return registros.map((registro) => ({
-      id: registro.id,
-      nomeCliente: registro.cliente.nome,
-      valor: registro.valor.toNumber(),
-      vencimento: registro.vencimento,
-      status: registro.status,
-      origem: registro.origem,
-    }));
+    const [registros, totalItens] = await Promise.all([
+      this.prisma.cobranca.findMany({
+        where,
+        include: { cliente: { select: { nome: true } } },
+        orderBy: { vencimento: "asc" },
+        skip: (paginacao.pagina - 1) * paginacao.itensPorPagina,
+        take: paginacao.itensPorPagina,
+      }),
+      this.prisma.cobranca.count({ where }),
+    ]);
+
+    return {
+      itens: registros.map((registro) => ({
+        id: registro.id,
+        nomeCliente: registro.cliente.nome,
+        valor: registro.valor.toNumber(),
+        vencimento: registro.vencimento,
+        status: registro.status,
+        origem: registro.origem,
+      })),
+      paginaAtual: paginacao.pagina,
+      totalPaginas: Math.max(1, Math.ceil(totalItens / paginacao.itensPorPagina)),
+      totalItens,
+    };
   }
 
   async calcularTotais(filtro: Pick<FiltroDashboardCobranca, "mes" | "ano">): Promise<TotaisDashboard> {
@@ -46,6 +64,55 @@ export class PrismaDashboardCobrancaQuery implements DashboardCobrancaQuery {
       totalAReceber: somaPorStatus("PENDENTE") + somaPorStatus("ATRASADO"),
       totalRecebido: somaPorStatus("PAGO"),
       totalEmAtraso: somaPorStatus("ATRASADO"),
+    };
+  }
+
+  async calcularIndicadores(
+    filtro: Pick<FiltroDashboardCobranca, "mes" | "ano">,
+    referencia: Date,
+  ): Promise<IndicadoresDashboard> {
+    const { inicio, fim } = this.intervaloDoMes(filtro.mes, filtro.ano);
+
+    const [agregadosPorStatus, agregadoGeral, agregadoAvulsas, proximosVencimentos] = await Promise.all([
+      this.prisma.cobranca.groupBy({
+        by: ["status"],
+        where: { vencimento: { gte: inicio, lt: fim } },
+        _count: { _all: true },
+      }),
+      this.prisma.cobranca.aggregate({
+        where: { vencimento: { gte: inicio, lt: fim }, status: { not: "CANCELADO" } },
+        _count: { _all: true },
+        _sum: { valor: true },
+      }),
+      this.prisma.cobranca.count({
+        where: { vencimento: { gte: inicio, lt: fim }, origem: "AVULSA", status: { not: "CANCELADO" } },
+      }),
+      this.prisma.cobranca.aggregate({
+        where: {
+          status: "PENDENTE",
+          vencimento: { gte: referencia, lte: new Date(referencia.getTime() + 7 * 24 * 60 * 60 * 1000) },
+        },
+        _count: { _all: true },
+        _sum: { valor: true },
+      }),
+    ]);
+
+    const contagemPorStatus = (status: string) =>
+      agregadosPorStatus.find((agregado) => agregado.status === status)?._count._all ?? 0;
+
+    const totalGeradas = agregadoGeral._count._all;
+    const somaValor = agregadoGeral._sum.valor?.toNumber() ?? 0;
+
+    return {
+      totalGeradas,
+      totalPagas: contagemPorStatus("PAGO"),
+      totalAtrasadas: contagemPorStatus("ATRASADO"),
+      ticketMedio: totalGeradas > 0 ? somaValor / totalGeradas : 0,
+      totalAvulsas: agregadoAvulsas,
+      proximosVencimentos: {
+        quantidade: proximosVencimentos._count._all,
+        valorTotal: proximosVencimentos._sum.valor?.toNumber() ?? 0,
+      },
     };
   }
 
@@ -82,37 +149,61 @@ export class PrismaDashboardCobrancaQuery implements DashboardCobrancaQuery {
     };
   }
 
-  async listarErrosGeracaoCobranca(limite: number): Promise<ErroGeracaoCobrancaDashboardItem[]> {
-    const registros = await this.prisma.erroGeracaoCobranca.findMany({
-      orderBy: { ocorridoEm: "desc" },
-      take: limite,
-    });
+  async listarErrosGeracaoCobranca(
+    paginacao: PaginacaoInput,
+  ): Promise<ResultadoPaginado<ErroGeracaoCobrancaDashboardItem>> {
+    const [registros, totalItens] = await Promise.all([
+      this.prisma.erroGeracaoCobranca.findMany({
+        orderBy: { ocorridoEm: "desc" },
+        skip: (paginacao.pagina - 1) * paginacao.itensPorPagina,
+        take: paginacao.itensPorPagina,
+      }),
+      this.prisma.erroGeracaoCobranca.count(),
+    ]);
 
-    return registros.map((registro) => ({
-      id: registro.id,
-      clienteId: registro.clienteId,
-      nomeCliente: registro.nomeCliente,
-      mensagemErro: registro.mensagemErro,
-      ocorridoEm: registro.ocorridoEm,
-    }));
+    return {
+      itens: registros.map((registro) => ({
+        id: registro.id,
+        clienteId: registro.clienteId,
+        nomeCliente: registro.nomeCliente,
+        mensagemErro: registro.mensagemErro,
+        ocorridoEm: registro.ocorridoEm,
+      })),
+      paginaAtual: paginacao.pagina,
+      totalPaginas: Math.max(1, Math.ceil(totalItens / paginacao.itensPorPagina)),
+      totalItens,
+    };
   }
 
-  async listarMensagensComFalha(limite: number): Promise<MensagemComFalhaDashboardItem[]> {
-    const registros = await this.prisma.mensagemEnviada.findMany({
-      where: { statusEnvio: "FALHA" },
-      include: { cobranca: { include: { cliente: { select: { nome: true } } } } },
-      orderBy: { enviadoEm: "desc" },
-      take: limite,
-    });
+  async listarMensagensComFalha(
+    paginacao: PaginacaoInput,
+  ): Promise<ResultadoPaginado<MensagemComFalhaDashboardItem>> {
+    const where = { statusEnvio: "FALHA" as const };
 
-    return registros.map((registro) => ({
-      id: registro.id,
-      cobrancaId: registro.cobrancaId,
-      nomeCliente: registro.cobranca.cliente.nome,
-      tipo: registro.tipo,
-      canal: registro.canal,
-      enviadoEm: registro.enviadoEm,
-    }));
+    const [registros, totalItens] = await Promise.all([
+      this.prisma.mensagemEnviada.findMany({
+        where,
+        include: { cobranca: { include: { cliente: { select: { nome: true } } } } },
+        orderBy: { enviadoEm: "desc" },
+        skip: (paginacao.pagina - 1) * paginacao.itensPorPagina,
+        take: paginacao.itensPorPagina,
+      }),
+      this.prisma.mensagemEnviada.count({ where }),
+    ]);
+
+    return {
+      itens: registros.map((registro) => ({
+        id: registro.id,
+        cobrancaId: registro.cobrancaId,
+        nomeCliente: registro.cobranca.cliente.nome,
+        tipo: registro.tipo,
+        canal: registro.canal,
+        enviadoEm: registro.enviadoEm,
+      })),
+      paginaAtual: paginacao.pagina,
+      totalPaginas: Math.max(1, Math.ceil(totalItens / paginacao.itensPorPagina)),
+      totalItens,
+    };
   }
 
   private montarWhere(filtro: FiltroDashboardCobranca): Prisma.CobrancaWhereInput {

@@ -19,6 +19,8 @@ const STATUS_VALIDOS: StatusCliente[] = ["ATIVO", "INATIVO"];
 interface ListarQuerystring {
   busca?: string;
   status?: string;
+  pagina?: string;
+  itensPorPagina?: string;
 }
 
 interface StatusBody {
@@ -61,18 +63,20 @@ export async function clientesRoutes(app: FastifyInstance) {
   app.addHook("preHandler", autenticar);
 
   app.get<{ Querystring: ListarQuerystring }>("/clientes", async (request, reply) => {
-    const { busca, status } = request.query;
+    const { busca, status, pagina, itensPorPagina } = request.query;
 
     if (status && !STATUS_VALIDOS.includes(status as StatusCliente)) {
       return reply.status(400).send({ error: "Status inválido" });
     }
 
-    const clientes = await listarClientesUseCase.executar({
+    const resultado = await listarClientesUseCase.executar({
       busca,
       status: status as StatusCliente | undefined,
+      pagina: pagina ? Number(pagina) : undefined,
+      itensPorPagina: itensPorPagina ? Number(itensPorPagina) : undefined,
     });
 
-    return reply.status(200).send(clientes.map(paraDTO));
+    return reply.status(200).send({ ...resultado, itens: resultado.itens.map(paraDTO) });
   });
 
   app.get<{ Params: { id: string } }>("/clientes/:id", async (request, reply) => {

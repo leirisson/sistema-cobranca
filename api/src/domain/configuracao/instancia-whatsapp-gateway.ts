@@ -10,4 +10,5 @@ export interface StatusWhatsappResultado {
 export interface InstanciaWhatsappGateway {
   conectar(): Promise<ConectarWhatsappResultado>;
   obterStatus(): Promise<StatusWhatsappResultado>;
+  desconectar(): Promise<void>;
 }

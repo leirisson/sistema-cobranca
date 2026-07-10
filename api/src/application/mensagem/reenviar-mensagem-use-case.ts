@@ -59,7 +59,13 @@ export class ReenviarMensagemUseCase {
     }
 
     const configuracao = await this.configuracaoRepository.buscar();
-    const { texto, assuntoEmail, corpoHtmlEmail } = this.montarConteudo(original.tipo, cliente.nome, cobranca, configuracao.nomeRemetente);
+    const { texto, assuntoEmail, corpoHtmlEmail } = this.montarConteudo(
+      original.tipo,
+      cliente.nome,
+      cobranca,
+      configuracao.nomeRemetente,
+      configuracao.mensagemCobrancaPersonalizada,
+    );
 
     const resultado =
       original.canal === "whatsapp"
@@ -92,6 +98,7 @@ export class ReenviarMensagemUseCase {
     nomeCliente: string,
     cobranca: { valor: number; vencimento: Date; linkPagamento: string; pixCopiaECola: string | null },
     nomeRemetente: string | null,
+    mensagemPersonalizada: string | null,
   ): { texto: string; assuntoEmail: string; corpoHtmlEmail: string } {
     if (tipo === "CONFIRMACAO") {
       const dados = { nomeCliente, valor: cobranca.valor, nomeRemetente };
@@ -107,6 +114,7 @@ export class ReenviarMensagemUseCase {
       linkPagamento: cobranca.linkPagamento,
       pixCopiaECola: cobranca.pixCopiaECola,
       nomeRemetente,
+      mensagemPersonalizada,
     };
     const tipoComTemplate = tipo as TipoMensagemComTemplate;
     const email = montarEmailMensagem(tipoComTemplate, dados);

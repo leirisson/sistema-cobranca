@@ -29,12 +29,14 @@ export class PrismaConfiguracaoRepository implements ConfiguracaoRepository {
         id: configuracao.id,
         asaasApiKeyCifrada: configuracao.asaasApiKeyCifrada,
         nomeRemetente: configuracao.nomeRemetente,
+        mensagemCobrancaPersonalizada: configuracao.mensagemCobrancaPersonalizada,
         confirmacaoPagamentoHabilitada: configuracao.confirmacaoPagamentoHabilitada,
         confirmacaoPagamentoConfiguradaPeloUsuario: configuracao.confirmacaoPagamentoConfiguradaPeloUsuario,
       },
       update: {
         asaasApiKeyCifrada: configuracao.asaasApiKeyCifrada,
         nomeRemetente: configuracao.nomeRemetente,
+        mensagemCobrancaPersonalizada: configuracao.mensagemCobrancaPersonalizada,
         confirmacaoPagamentoHabilitada: configuracao.confirmacaoPagamentoHabilitada,
         confirmacaoPagamentoConfiguradaPeloUsuario: configuracao.confirmacaoPagamentoConfiguradaPeloUsuario,
       },
@@ -45,6 +47,7 @@ export class PrismaConfiguracaoRepository implements ConfiguracaoRepository {
     id: string;
     asaasApiKeyCifrada: string | null;
     nomeRemetente: string | null;
+    mensagemCobrancaPersonalizada: string | null;
     confirmacaoPagamentoHabilitada: boolean;
     confirmacaoPagamentoConfiguradaPeloUsuario: boolean;
     createdAt: Date;
@@ -54,6 +57,7 @@ export class PrismaConfiguracaoRepository implements ConfiguracaoRepository {
       id: registro.id,
       asaasApiKeyCifrada: registro.asaasApiKeyCifrada,
       nomeRemetente: registro.nomeRemetente,
+      mensagemCobrancaPersonalizada: registro.mensagemCobrancaPersonalizada,
       confirmacaoPagamentoHabilitada: registro.confirmacaoPagamentoHabilitada,
       confirmacaoPagamentoConfiguradaPeloUsuario: registro.confirmacaoPagamentoConfiguradaPeloUsuario,
       createdAt: registro.createdAt,

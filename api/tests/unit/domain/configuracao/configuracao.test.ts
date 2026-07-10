@@ -87,4 +87,31 @@ describe("Configuracao", () => {
     expect(configuracao.confirmacaoPagamentoHabilitada).toBe(false);
     expect(configuracao.confirmacaoPagamentoConfiguradaPeloUsuario).toBe(true);
   });
+
+  it("atualizarMensagemCobrancaPersonalizada altera o campo", () => {
+    const configuracao = Configuracao.criar({});
+
+    configuracao.atualizarMensagemCobrancaPersonalizada("Olá {nome}! Sua cobrança de {valor} vence em {vencimento}.");
+
+    expect(configuracao.mensagemCobrancaPersonalizada).toBe(
+      "Olá {nome}! Sua cobrança de {valor} vence em {vencimento}.",
+    );
+  });
+
+  it("atualizarMensagemCobrancaPersonalizada com null remove o texto customizado", () => {
+    const configuracao = Configuracao.restaurar({
+      id: ID_CONFIGURACAO_DEFAULT,
+      asaasApiKeyCifrada: null,
+      nomeRemetente: null,
+      mensagemCobrancaPersonalizada: "texto antigo",
+      confirmacaoPagamentoHabilitada: false,
+      confirmacaoPagamentoConfiguradaPeloUsuario: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    configuracao.atualizarMensagemCobrancaPersonalizada(null);
+
+    expect(configuracao.mensagemCobrancaPersonalizada).toBeNull();
+  });
 });

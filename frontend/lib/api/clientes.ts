@@ -51,18 +51,29 @@ export interface ClienteInput {
   referenciaServico?: string | null;
 }
 
+export interface ResultadoPaginado<T> {
+  itens: T[];
+  paginaAtual: number;
+  totalPaginas: number;
+  totalItens: number;
+}
+
 export interface ListarClientesFiltro {
   busca?: string;
   status?: StatusCliente;
+  pagina?: number;
+  itensPorPagina?: number;
 }
 
-export async function listarClientes(filtro: ListarClientesFiltro = {}): Promise<ClienteDTO[]> {
+export async function listarClientes(filtro: ListarClientesFiltro = {}): Promise<ResultadoPaginado<ClienteDTO>> {
   const params = new URLSearchParams();
   if (filtro.busca) params.set("busca", filtro.busca);
   if (filtro.status) params.set("status", filtro.status);
+  if (filtro.pagina) params.set("pagina", String(filtro.pagina));
+  if (filtro.itensPorPagina) params.set("itensPorPagina", String(filtro.itensPorPagina));
 
   const query = params.toString();
-  return apiFetch<ClienteDTO[]>(`/clientes${query ? `?${query}` : ""}`);
+  return apiFetch<ResultadoPaginado<ClienteDTO>>(`/clientes${query ? `?${query}` : ""}`);
 }
 
 export async function buscarCliente(id: string): Promise<ClienteDTO | null> {

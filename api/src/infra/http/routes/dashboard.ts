@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 
 import { BuscarDetalheCobrancaUseCase } from "../../../application/cobranca/buscar-detalhe-cobranca-use-case.js";
 import { BuscarErrosOperacionaisUseCase } from "../../../application/cobranca/buscar-erros-operacionais-use-case.js";
+import { BuscarIndicadoresDashboardUseCase } from "../../../application/cobranca/buscar-indicadores-dashboard-use-case.js";
 import { ListarCobrancasDashboardUseCase } from "../../../application/cobranca/listar-cobrancas-dashboard-use-case.js";
 import type { StatusCobranca } from "../../../domain/cobranca/cobranca.js";
 import { CobrancaInvalidaError } from "../../../domain/cobranca/cobranca-invalida-error.js";
@@ -20,6 +21,13 @@ interface DashboardQuerystring {
   busca?: string;
   mes?: string;
   ano?: string;
+  pagina?: string;
+  itensPorPagina?: string;
+}
+
+interface ErrosQuerystring {
+  paginaErros?: string;
+  paginaMensagens?: string;
 }
 
 export async function dashboardRoutes(app: FastifyInstance) {
@@ -27,11 +35,12 @@ export async function dashboardRoutes(app: FastifyInstance) {
   const useCase = new ListarCobrancasDashboardUseCase(dashboardCobrancaQuery);
   const buscarDetalheUseCase = new BuscarDetalheCobrancaUseCase(dashboardCobrancaQuery);
   const buscarErrosOperacionaisUseCase = new BuscarErrosOperacionaisUseCase(dashboardCobrancaQuery);
+  const buscarIndicadoresUseCase = new BuscarIndicadoresDashboardUseCase(dashboardCobrancaQuery);
 
   app.addHook("preHandler", autenticar);
 
   app.get<{ Querystring: DashboardQuerystring }>("/dashboard/cobrancas", async (request, reply) => {
-    const { status, busca, mes, ano } = request.query;
+    const { status, busca, mes, ano, pagina, itensPorPagina } = request.query;
 
     if (status && !STATUS_VALIDOS.includes(status as StatusCobranca)) {
       return reply.status(400).send({ error: "Status inválido" });
@@ -42,13 +51,34 @@ export async function dashboardRoutes(app: FastifyInstance) {
       busca,
       mes: mes ? Number(mes) : undefined,
       ano: ano ? Number(ano) : undefined,
+      pagina: pagina ? Number(pagina) : undefined,
+      itensPorPagina: itensPorPagina ? Number(itensPorPagina) : undefined,
     });
 
     return reply.status(200).send(resultado);
   });
 
-  app.get("/dashboard/erros", async (_request, reply) => {
-    const resultado = await buscarErrosOperacionaisUseCase.executar();
+  app.get<{ Querystring: Pick<DashboardQuerystring, "mes" | "ano"> }>(
+    "/dashboard/indicadores",
+    async (request, reply) => {
+      const { mes, ano } = request.query;
+
+      const resultado = await buscarIndicadoresUseCase.executar({
+        mes: mes ? Number(mes) : undefined,
+        ano: ano ? Number(ano) : undefined,
+      });
+
+      return reply.status(200).send(resultado);
+    },
+  );
+
+  app.get<{ Querystring: ErrosQuerystring }>("/dashboard/erros", async (request, reply) => {
+    const { paginaErros, paginaMensagens } = request.query;
+
+    const resultado = await buscarErrosOperacionaisUseCase.executar({
+      paginaErros: paginaErros ? Number(paginaErros) : undefined,
+      paginaMensagens: paginaMensagens ? Number(paginaMensagens) : undefined,
+    });
 
     return reply.status(200).send(resultado);
   });

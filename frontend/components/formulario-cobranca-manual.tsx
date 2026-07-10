@@ -7,17 +7,19 @@ import type { CobrancaManualFormState } from "@/lib/cobranca/actions";
 interface FormularioCobrancaManualProps {
   clienteId: string;
   action: (state: CobrancaManualFormState, formData: FormData) => Promise<CobrancaManualFormState>;
+  origem?: string;
 }
 
 const estadoInicial: CobrancaManualFormState = {};
 
-export function FormularioCobrancaManual({ clienteId, action }: FormularioCobrancaManualProps) {
+export function FormularioCobrancaManual({ clienteId, action, origem }: FormularioCobrancaManualProps) {
   const [state, formAction, pending] = useActionState(action, estadoInicial);
   const camposComErro = state.camposComErro ?? {};
 
   return (
     <form action={formAction} className="flex flex-col gap-8">
       <input type="hidden" name="clienteId" value={clienteId} />
+      {origem && <input type="hidden" name="origem" value={origem} />}
 
       {state.error && !Object.keys(camposComErro).length && (
         <p
@@ -101,5 +103,5 @@ function Campo({
 
 function inputClassName(comErro: boolean): string {
   const borda = comErro ? "border-carimbo-atrasado" : "border-linha focus:border-tinta";
-  return `rounded-md border ${borda} bg-white px-4 py-2.5 text-base text-grafite outline-none transition-colors focus:border-2 focus:px-[15px] focus:py-[9px]`;
+  return `w-full min-w-0 rounded-md border ${borda} bg-white px-4 py-2.5 text-base text-grafite outline-none transition-colors focus:border-2 focus:px-[15px] focus:py-[9px]`;
 }

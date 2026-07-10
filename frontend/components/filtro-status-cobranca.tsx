@@ -14,10 +14,14 @@ export function FiltroStatusCobranca({
   statusAtual,
   mes,
   ano,
+  busca,
+  baseHref = "/cobrancas",
 }: {
   statusAtual?: StatusCobranca;
   mes: number;
   ano: number;
+  busca?: string;
+  baseHref?: string;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1 rounded-md border border-linha bg-white p-1">
@@ -26,7 +30,8 @@ export function FiltroStatusCobranca({
         params.set("mes", String(mes));
         params.set("ano", String(ano));
         if (opcao.value) params.set("status", opcao.value);
-        const href = `/dashboard?${params.toString()}`;
+        if (busca) params.set("busca", busca);
+        const href = `${baseHref}?${params.toString()}`;
         const ativo = statusAtual === opcao.value;
 
         return (

@@ -67,14 +67,18 @@ describe("Rotas /clientes", () => {
     expect(response.statusCode).toBe(401);
   });
 
-  it("lista clientes com token válido (CAD-HTTP-01)", async () => {
+  it("lista clientes paginados com token válido (CAD-HTTP-01)", async () => {
     await criarCliente("Maria Silva");
     await criarCliente("João Souza", "INATIVO");
 
     const response = await app.inject({ method: "GET", url: "/clientes", headers: authHeader });
+    const body = response.json();
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toHaveLength(2);
+    expect(body.itens).toHaveLength(2);
+    expect(body.paginaAtual).toBe(1);
+    expect(body.totalItens).toBe(2);
+    expect(body.totalPaginas).toBe(1);
   });
 
   it("filtra clientes por busca e status combinados", async () => {
@@ -89,8 +93,22 @@ describe("Rotas /clientes", () => {
     const body = response.json();
 
     expect(response.statusCode).toBe(200);
-    expect(body).toHaveLength(1);
-    expect(body[0].nome).toBe("Maria Silva");
+    expect(body.itens).toHaveLength(1);
+    expect(body.itens[0].nome).toBe("Maria Silva");
+  });
+
+  it("pagina clientes via query param ?pagina=", async () => {
+    for (let i = 1; i <= 25; i++) {
+      await criarCliente(`Cliente ${String(i).padStart(2, "0")}`);
+    }
+
+    const paginaUm = await app.inject({ method: "GET", url: "/clientes", headers: authHeader });
+    const paginaDois = await app.inject({ method: "GET", url: "/clientes?pagina=2", headers: authHeader });
+
+    expect(paginaUm.json().itens).toHaveLength(20);
+    expect(paginaDois.json().itens).toHaveLength(5);
+    expect(paginaDois.json().paginaAtual).toBe(2);
+    expect(paginaDois.json().totalPaginas).toBe(2);
   });
 
   it("retorna 400 para status inválido na listagem", async () => {
@@ -131,6 +149,7 @@ describe("Rotas /clientes", () => {
         nome: "Nova Cliente",
         documento: "98765432100",
         telefones: [{ numero: "+5511988887777", principal: true }],
+        email: "nova.cliente@example.com",
         valorCobranca: 200,
         diaVencimento: 15,
       },
@@ -139,6 +158,24 @@ describe("Rotas /clientes", () => {
     expect(response.statusCode).toBe(201);
     expect(response.json().nome).toBe("Nova Cliente");
     expect(response.json().status).toBe("ATIVO");
+  });
+
+  it("retorna 400 ao criar cliente sem e-mail (CAD-R-05)", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/clientes",
+      headers: authHeader,
+      payload: {
+        nome: "Nova Cliente",
+        documento: "98765432100",
+        telefones: [{ numero: "+5511988887777", principal: true }],
+        valorCobranca: 200,
+        diaVencimento: 15,
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toEqual(expect.any(String));
   });
 
   it("retorna 400 com erro estruturado para dados inválidos na criação", async () => {

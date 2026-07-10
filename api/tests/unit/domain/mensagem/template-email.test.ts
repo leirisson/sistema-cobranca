@@ -56,4 +56,23 @@ describe("montarEmailMensagem", () => {
 
     expect(email.corpoHtml).toContain("Minha Empresa");
   });
+
+  it("usa a mensagem personalizada no corpo quando informada, mantendo o link como <a href>", () => {
+    const email = montarEmailMensagem("LEMBRETE", {
+      ...dadosBase(),
+      mensagemPersonalizada: "Olá {nome}! Pague aqui: {link}",
+    });
+
+    expect(email.corpoHtml).toContain("Olá Maria Silva!");
+    expect(email.corpoHtml).toMatch(/<a\s+href="https:\/\/sandbox\.asaas\.com\/i\/asaas_123"/);
+  });
+
+  it("mensagem personalizada não altera o assunto (segue fixo por tipo)", () => {
+    const email = montarEmailMensagem("LEMBRETE", {
+      ...dadosBase(),
+      mensagemPersonalizada: "Olá {nome}!",
+    });
+
+    expect(email.assunto).toContain("Lembrete");
+  });
 });

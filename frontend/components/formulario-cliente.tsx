@@ -21,11 +21,8 @@ export function FormularioCliente({ clienteInicial, action }: FormularioClienteP
   const [telefones, setTelefones] = useState<TelefoneClienteDTO[]>(
     clienteInicial?.telefones.length ? clienteInicial.telefones : [{ numero: "", principal: true }],
   );
-  const temEnderecoInicial = Boolean(
-    clienteInicial?.endereco ||
-      clienteInicial?.inscricaoEstadual ||
-      clienteInicial?.nomeContato ||
-      clienteInicial?.referenciaServico,
+  const temDadosAdicionaisIniciais = Boolean(
+    clienteInicial?.inscricaoEstadual || clienteInicial?.nomeContato || clienteInicial?.referenciaServico,
   );
   const [endereco, setEndereco] = useState<Partial<EnderecoClienteDTO>>(clienteInicial?.endereco ?? {});
   const [temEndereco, setTemEndereco] = useState(Boolean(clienteInicial?.endereco));
@@ -85,7 +82,7 @@ export function FormularioCliente({ clienteInicial, action }: FormularioClienteP
       )}
 
       <section className="flex flex-col gap-5">
-        <h2 className="font-display text-lg font-semibold text-grafite">Dados obrigatórios</h2>
+        <h2 className="font-display text-lg font-semibold text-grafite">Dados do cliente</h2>
 
         <Campo id={`${idBase}-nome`} label="Nome" erro={camposComErro.nome}>
           <input
@@ -113,16 +110,16 @@ export function FormularioCliente({ clienteInicial, action }: FormularioClienteP
         <div className="flex flex-col gap-3">
           <span className="text-sm font-medium text-grafite">Telefones</span>
           {telefones.map((telefone, index) => (
-            <div key={index} className="flex items-center gap-3">
+            <div key={index} className="flex flex-wrap items-center gap-3">
               <input
                 type="text"
                 value={telefone.numero}
                 onChange={(event) => atualizarTelefone(index, "numero", event.target.value)}
                 placeholder="+5592999999999"
                 required
-                className={inputClassName(false) + " flex-1"}
+                className={inputClassName(false) + " sm:w-auto sm:flex-1"}
               />
-              <label className="flex items-center gap-1.5 whitespace-nowrap text-sm text-grafite">
+              <label className="flex items-center gap-1.5 text-sm whitespace-nowrap text-grafite">
                 <input
                   type="radio"
                   name="telefone-principal"
@@ -136,7 +133,7 @@ export function FormularioCliente({ clienteInicial, action }: FormularioClienteP
                 <button
                   type="button"
                   onClick={() => removerTelefone(index)}
-                  className="text-sm text-carimbo-atrasado hover:underline"
+                  className="text-sm whitespace-nowrap text-carimbo-atrasado hover:underline"
                 >
                   Remover
                 </button>
@@ -157,17 +154,18 @@ export function FormularioCliente({ clienteInicial, action }: FormularioClienteP
           </button>
         </div>
 
-        <Campo id={`${idBase}-email`} label="E-mail (opcional)" erro={camposComErro.email}>
+        <Campo id={`${idBase}-email`} label="E-mail" erro={camposComErro.email}>
           <input
             id={`${idBase}-email`}
             name="email"
             type="email"
+            required
             defaultValue={clienteInicial?.email ?? undefined}
             className={inputClassName(Boolean(camposComErro.email))}
           />
         </Campo>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Campo id={`${idBase}-valor`} label="Valor de cobrança" erro={camposComErro.valorCobranca}>
             <input
               id={`${idBase}-valor`}
@@ -194,56 +192,20 @@ export function FormularioCliente({ clienteInicial, action }: FormularioClienteP
             />
           </Campo>
         </div>
-      </section>
 
-      <details open={temEnderecoInicial} className="rounded-md border border-linha p-4">
-        <summary className="cursor-pointer font-display text-base font-semibold text-grafite">
-          Dados adicionais
-        </summary>
-
-        <div className="mt-5 flex flex-col gap-5">
-          <Campo id={`${idBase}-nomeContato`} label="Nome de contato (opcional)">
-            <input
-              id={`${idBase}-nomeContato`}
-              name="nomeContato"
-              type="text"
-              defaultValue={clienteInicial?.nomeContato ?? undefined}
-              className={inputClassName(false)}
-            />
-          </Campo>
-
-          <Campo id={`${idBase}-inscricaoEstadual`} label="Inscrição estadual (opcional)">
-            <input
-              id={`${idBase}-inscricaoEstadual`}
-              name="inscricaoEstadual"
-              type="text"
-              defaultValue={clienteInicial?.inscricaoEstadual ?? undefined}
-              className={inputClassName(false)}
-            />
-          </Campo>
-
-          <Campo id={`${idBase}-referenciaServico`} label="Referência de serviço (opcional)">
-            <input
-              id={`${idBase}-referenciaServico`}
-              name="referenciaServico"
-              type="text"
-              defaultValue={clienteInicial?.referenciaServico ?? undefined}
-              className={inputClassName(false)}
-            />
-          </Campo>
-
-          <label className="flex items-center gap-2 text-sm text-grafite">
+        <div className="flex flex-col gap-3">
+          <label className="flex items-center gap-2 text-sm font-medium text-grafite">
             <input
               type="checkbox"
               checked={temEndereco}
               onChange={(event) => setTemEndereco(event.target.checked)}
               className="h-4 w-4 accent-tinta"
             />
-            Cadastrar endereço
+            Endereço (opcional)
           </label>
 
           {temEndereco && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Campo id={`${idBase}-rua`} label="Rua">
                 <input
                   id={`${idBase}-rua`}
@@ -302,6 +264,44 @@ export function FormularioCliente({ clienteInicial, action }: FormularioClienteP
             </div>
           )}
         </div>
+      </section>
+
+      <details open={temDadosAdicionaisIniciais} className="rounded-md border border-linha p-4">
+        <summary className="cursor-pointer font-display text-base font-semibold text-grafite">
+          Dados adicionais
+        </summary>
+
+        <div className="mt-5 flex flex-col gap-5">
+          <Campo id={`${idBase}-nomeContato`} label="Nome de contato (opcional)">
+            <input
+              id={`${idBase}-nomeContato`}
+              name="nomeContato"
+              type="text"
+              defaultValue={clienteInicial?.nomeContato ?? undefined}
+              className={inputClassName(false)}
+            />
+          </Campo>
+
+          <Campo id={`${idBase}-inscricaoEstadual`} label="Inscrição estadual (opcional)">
+            <input
+              id={`${idBase}-inscricaoEstadual`}
+              name="inscricaoEstadual"
+              type="text"
+              defaultValue={clienteInicial?.inscricaoEstadual ?? undefined}
+              className={inputClassName(false)}
+            />
+          </Campo>
+
+          <Campo id={`${idBase}-referenciaServico`} label="Referência de serviço (opcional)">
+            <input
+              id={`${idBase}-referenciaServico`}
+              name="referenciaServico"
+              type="text"
+              defaultValue={clienteInicial?.referenciaServico ?? undefined}
+              className={inputClassName(false)}
+            />
+          </Campo>
+        </div>
       </details>
 
       <button
@@ -343,5 +343,5 @@ function Campo({
 
 function inputClassName(comErro: boolean): string {
   const borda = comErro ? "border-carimbo-atrasado" : "border-linha focus:border-tinta";
-  return `rounded-md border ${borda} bg-white px-4 py-2.5 text-base text-grafite outline-none transition-colors focus:border-2 focus:px-[15px] focus:py-[9px]`;
+  return `w-full min-w-0 rounded-md border ${borda} bg-white px-4 py-2.5 text-base text-grafite outline-none transition-colors focus:border-2 focus:px-[15px] focus:py-[9px]`;
 }

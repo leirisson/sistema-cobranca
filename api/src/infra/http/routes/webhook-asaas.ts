@@ -18,6 +18,8 @@ interface WebhookAsaasPayload {
   payment: { id: string };
 }
 
+const EVENTOS_PAGAMENTO_CONFIRMADO = new Set(["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED"]);
+
 export async function webhookAsaasRoutes(app: FastifyInstance) {
   const cobrancaRepository = new PrismaCobrancaRepository(prisma);
   const clienteRepository = new PrismaClienteRepository(prisma);
@@ -48,7 +50,11 @@ export async function webhookAsaasRoutes(app: FastifyInstance) {
       return reply.status(401).send({ error: "Token de webhook inválido" });
     }
 
-    const { payment } = request.body;
+    const { event, payment } = request.body;
+
+    if (!EVENTOS_PAGAMENTO_CONFIRMADO.has(event)) {
+      return reply.status(200).send({ status: "ignorado" });
+    }
 
     const configuracao = await configuracaoRepository.buscar();
     const confirmacaoHabilitada = resolverConfirmacaoHabilitada(

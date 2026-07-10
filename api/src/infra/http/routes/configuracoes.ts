@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 
 import { AtualizarConfiguracaoUseCase } from "../../../application/configuracao/atualizar-configuracao-use-case.js";
 import { ConectarWhatsappUseCase } from "../../../application/configuracao/conectar-whatsapp-use-case.js";
+import { DesconectarWhatsappUseCase } from "../../../application/configuracao/desconectar-whatsapp-use-case.js";
 import { ObterConfiguracaoUseCase } from "../../../application/configuracao/obter-configuracao-use-case.js";
 import { ObterStatusWhatsappUseCase } from "../../../application/configuracao/obter-status-whatsapp-use-case.js";
 import { env } from "../../../shared/config/env.js";
@@ -14,6 +15,7 @@ import { autenticar } from "../plugins/auth.js";
 interface AtualizarConfiguracaoBody {
   asaasApiKey?: string;
   nomeRemetente?: string | null;
+  mensagemCobrancaPersonalizada?: string | null;
   confirmacaoPagamentoHabilitada?: boolean;
 }
 
@@ -31,6 +33,7 @@ export async function configuracoesRoutes(app: FastifyInstance) {
   });
   const conectarWhatsappUseCase = new ConectarWhatsappUseCase(instanciaWhatsappGateway);
   const obterStatusWhatsappUseCase = new ObterStatusWhatsappUseCase(instanciaWhatsappGateway);
+  const desconectarWhatsappUseCase = new DesconectarWhatsappUseCase(instanciaWhatsappGateway);
 
   app.addHook("preHandler", autenticar);
 
@@ -64,6 +67,17 @@ export async function configuracoesRoutes(app: FastifyInstance) {
       return reply.status(200).send(resultado);
     } catch (error) {
       app.log.error({ err: error }, "Falha ao consultar status da instância do WhatsApp");
+      return reply.status(502).send(ERRO_WHATSAPP_INDISPONIVEL);
+    }
+  });
+
+  app.delete("/configuracoes/whatsapp/conexao", async (_request, reply) => {
+    try {
+      await desconectarWhatsappUseCase.executar();
+
+      return reply.status(204).send();
+    } catch (error) {
+      app.log.error({ err: error }, "Falha ao desconectar instância do WhatsApp");
       return reply.status(502).send(ERRO_WHATSAPP_INDISPONIVEL);
     }
   });

@@ -6,12 +6,14 @@ export interface ConfiguracaoDTO {
   asaasApiKeyConfigurada: boolean;
   asaasApiKeyUltimosDigitos: string | null;
   nomeRemetente: string | null;
+  mensagemCobrancaPersonalizada: string | null;
   confirmacaoPagamentoHabilitada: boolean;
 }
 
 export interface AtualizarConfiguracaoInput {
   asaasApiKey?: string;
   nomeRemetente?: string | null;
+  mensagemCobrancaPersonalizada?: string | null;
   confirmacaoPagamentoHabilitada?: boolean;
 }
 
@@ -38,4 +40,8 @@ export async function conectarWhatsapp(): Promise<WhatsappConectarDTO> {
 
 export async function obterStatusWhatsapp(): Promise<WhatsappStatusDTO> {
   return apiFetch<WhatsappStatusDTO>("/configuracoes/whatsapp/status");
+}
+
+export async function desconectarWhatsapp(): Promise<void> {
+  await apiFetch<null>("/configuracoes/whatsapp/conexao", { method: "DELETE" });
 }
