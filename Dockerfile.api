@@ -37,4 +37,4 @@ COPY api/prisma ./prisma
 USER cobracerta
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/infra/http/server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && (node dist/infra/database/seed-admin.js || true) && node dist/infra/http/server.js"]
