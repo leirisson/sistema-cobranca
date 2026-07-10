@@ -14,6 +14,7 @@ const envSchema = z.object({
   REDIS_HOST: z.string().default("localhost"),
   REDIS_PORT: z.coerce.number().int().positive().default(6379),
   REDIS_PASSWORD: z.string().optional(),
+  REDIS_DB: z.coerce.number().int().nonnegative().default(0),
 
   ASAAS_API_KEY: z.string(),
   ASAAS_BASE_URL: z.string().url(),
