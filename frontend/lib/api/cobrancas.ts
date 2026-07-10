@@ -111,3 +111,29 @@ export async function reenviarMensagem(cobrancaId: string, mensagemId: string): 
     { method: "POST", body: {} },
   );
 }
+
+export interface ErroGeracaoCobrancaItem {
+  id: string;
+  clienteId: string;
+  nomeCliente: string;
+  mensagemErro: string;
+  ocorridoEm: string;
+}
+
+export interface MensagemComFalhaItem {
+  id: string;
+  cobrancaId: string;
+  nomeCliente: string;
+  tipo: TipoMensagem;
+  canal: CanalNotificacao;
+  enviadoEm: string;
+}
+
+export interface ErrosOperacionais {
+  errosGeracaoCobranca: ErroGeracaoCobrancaItem[];
+  mensagensComFalha: MensagemComFalhaItem[];
+}
+
+export async function buscarErrosOperacionais(): Promise<ErrosOperacionais> {
+  return apiFetch<ErrosOperacionais>("/dashboard/erros");
+}

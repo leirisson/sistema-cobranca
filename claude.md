@@ -445,12 +445,22 @@ npx tsc -p tsconfig.test.json --noEmit
 
 > Registro cronológico de marcos. Cada entrada nova vai **no topo** da lista (mais recente primeiro), com data e um resumo do que mudou de estado.
 
+### 2026-07-10 — Frontend Sprint 7 (FE-OBS): painel de erros operacionais (`/erros`)
+
+- Fecha a única lacuna real de cobertura encontrada na auditoria da mesma data (ver entrada abaixo): `GET /dashboard/erros` não tinha nenhuma função de API nem tela no frontend.
+- `frontend/lib/api/cobrancas.ts` ganhou `buscarErrosOperacionais()` + tipos `ErroGeracaoCobrancaItem`/`MensagemComFalhaItem`/`ErrosOperacionais`, reaproveitando `TipoMensagem`/`CanalNotificacao` já exportados no mesmo arquivo.
+- `components/tabela-erros-geracao-cobranca.tsx` (cliente, mensagem de erro, data/hora) e `components/tabela-mensagens-com-falha.tsx` (cliente linkado ao detalhe da cobrança, tipo, canal, data/hora) — mesmo padrão visual de `tabela-cobrancas.tsx` (tabela com `overflow-x-auto`, estado vazio próprio por seção, sem CTA).
+- Rota `app/(autenticado)/erros/page.tsx` (Server Component simples, sem filtro/paginação — a API já limita a 20 registros mais recentes de cada lista); link "Erros" adicionado à sidebar entre "Clientes" e "Configurações".
+- Lint e typecheck do frontend limpos.
+- **Validado ponta a ponta no navegador (Playwright, servidor dev real + Postgres real):** inserido um `ErroGeracaoCobranca` de teste (`INSERT` direto) e uma `MensagemEnviada` `FALHA` real (cliente/cobrança de teste criados via Prisma) — confirmado que as duas tabelas renderizam os dados corretos, que o link do cliente na tabela de mensagens com falha aponta pro `href` certo (`/dashboard/cobrancas/:id`) e que o clique carrega o detalhe da cobrança correspondente; estado vazio da segunda tabela confirmado antes de inserir a mensagem de teste. Dados de teste removidos do Postgres ao final (`DELETE` via `node`/Prisma direto); servidores dev derrubados.
+- **Não feito ainda:** nenhuma pendência de escopo — com esta sprint, **todos os 19 endpoints do backend (10 módulos) têm cobertura de frontend**, fechando por completo a Análise de Gaps de 2026-07-09 dos dois lados (backend e frontend). Próximo passo natural: revisão de escopo do MVP v2.
+
 ### 2026-07-10 — Correção de documentação: Sprints 4 (FE-ONB) e 6 (FE-CANC+FE-REENVIO) do frontend marcadas "concluída"
 
 - Auditoria de código (não confiando no status de `frontend/sprints/README.md`) confirmou que todos os 19 endpoints HTTP do backend têm função de API correspondente em `frontend/lib/api/` **exceto um**: `GET /dashboard/erros` (COB-05/MSG-05, Sprint 10), que não tem nenhuma cobertura de frontend ainda — nem função, nem tela.
 - No processo, ficou claro que `frontend/sprints/sprint-04-fe-onboarding.md` e `sprint-06-fe-canc-reenvio.md` estavam marcadas "não iniciada" apesar do código já existir de ponta a ponta (tela `/configuracoes` com formulário Asaas/nome remetente/toggle de confirmação + QR Code WhatsApp; botões "Cancelar cobrança"/"Reenviar" em `components/detalhe-cobranca.tsx`) — mesmo desalinhamento documental já registrado para a Sprint 5/FE-AVULSA (ver entrada de 2026-07-09 "Sprint 7 (backend) e Sprint 5 (frontend)... fechadas fora de ordem"). As duas sprints foram implementadas junto dos respectivos backends (ONB na Sprint 6, CANC/REENVIO na Sprint 8), mas o status da sprint de frontend nunca foi atualizado quando o trabalho foi feito.
 - Corrigido, sem nenhuma mudança de código: os dois arquivos de sprint (checkboxes marcados `[x]`, status "concluída", nota de auditoria explicando o que foi conferido e onde) e `frontend/sprints/README.md` (tabela + nova seção "Pendência real", distinguindo explicitamente a lacuna real de `GET /dashboard/erros` do desalinhamento de documentação das outras duas sprints).
-- **Não feito ainda:** nenhuma sprint de frontend dedicada ao painel de `GET /dashboard/erros` existe ainda — é a única peça do backend (dos 10 módulos/19 endpoints) sem nenhuma cobertura de UI. Próximo passo natural do frontend.
+- **Não feito ainda (nesta entrada específica):** a lacuna de `GET /dashboard/erros` foi identificada aqui e fechada na mesma data, logo em seguida — ver entrada acima "Frontend Sprint 7 (FE-OBS)".
 
 ### 2026-07-09 — Sprint 10: Observabilidade Operacional (OBS) — fecha o roadmap de backend planejado nesta rodada
 

@@ -21,6 +21,8 @@ Sprint 4 — FE-ONB   (onboarding / configurações)
 Sprint 5 — FE-AVULSA (cobrança avulsa, MVP v1.3)
         ↓
 Sprint 6 — FE-CANC + FE-REENVIO (cancelamento + reenvio manual)
+        ↓
+Sprint 7 — FE-OBS (painel de erros operacionais)
 ```
 
 Sprints 4 a 6 nascem da Análise de Gaps e do MVP v1.3 (`api/SistemaDeCobrançaAutomática.md`,
@@ -46,21 +48,18 @@ visão consolidada).
 | [Sprint 4 — FE-ONB](sprint-04-fe-onboarding.md) | `onboarding` (backend) | Sprint 3, backend Sprint 6 | Concluída (implementada fora de ordem) |
 | [Sprint 5 — FE-AVULSA](sprint-05-fe-avulsa.md) | `cobranca-avulsa` (backend) | Sprint 4, backend Sprint 7 (implementada fora de ordem) | Concluída |
 | [Sprint 6 — FE-CANC + FE-REENVIO](sprint-06-fe-canc-reenvio.md) | `cancelamento-cobranca` + `reenvio-mensagem` (backend) | Sprint 5, backend Sprint 8 | Concluída (implementada fora de ordem) |
+| [Sprint 7 — FE-OBS](sprint-07-fe-erros-operacionais.md) | `observabilidade`, `cobrancas` (COB-05), `mensagens` (MSG-05) (backend) | Sprint 6, backend Sprint 10 | Concluída |
 
 > **Nota de auditoria (2026-07-10):** as Sprints 4 e 6 estavam marcadas "Não iniciada" apesar
 > do código já existir — mesmo desalinhamento documental já visto na Sprint 5 (implementação
 > aconteceu junto do backend correspondente, mas o status da sprint de frontend nunca foi
 > atualizado). Corrigido nesta data, sem nenhuma mudança de código; ver a "Nota de auditoria"
-> em cada arquivo de sprint para o detalhe do que foi conferido.
+> em cada arquivo de sprint para o detalhe do que foi conferido. A mesma auditoria encontrou a
+> Sprint 7 (`GET /dashboard/erros`) genuinamente não implementada — diferente das 4 e 6, essa
+> era uma lacuna real, não um problema de documentação — fechada logo em seguida, mesma data.
 
-## Pendência real (não é desalinhamento de documentação)
-
-`GET /dashboard/erros` (COB-05/MSG-05, fechados no backend na Sprint 10 de Observabilidade —
-ver `api/claude.md`) **não tem nenhuma cobertura no frontend**: nenhuma função em `lib/api/`,
-nenhuma tela, nenhum componente. Diferente das Sprints 4 e 6 acima, esta é uma lacuna real,
-não um problema de documentação desatualizada — confirmado por auditoria de código em
-2026-07-10. Ainda não existe uma sprint de frontend dedicada para esse painel de erros; é o
-próximo passo natural do frontend.
+Com a Sprint 7, **todos os 19 endpoints do backend (10 módulos) têm cobertura de frontend** —
+não sobra nenhum gap de UI conhecido da Análise de Gaps de 2026-07-09.
 
 ## Referências
 
